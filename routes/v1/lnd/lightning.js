@@ -22,6 +22,30 @@ router.post('/addInvoice', auth.jwt, safeHandler((req, res, next) => {
     .then(invoice => res.json({paymentRequest: invoice}));
 }));
 
+router.get('/forwardingEvents', auth.jwt, safeHandler((req, res, next) => {
+
+  const startTime = req.query.startTime;
+  const endTime = req.query.endTime;
+  const indexOffset = req.query.indexOffset;
+
+  try {
+    if (startTime) {
+      validator.isPositiveIntegerOrZero(startTime);
+    }
+    if (endTime) {
+      validator.isPositiveIntegerOrZero(endTime);
+    }
+    if (indexOffset) {
+      validator.isPositiveIntegerOrZero(indexOffset);
+    }
+  } catch (error) {
+    return next(error);
+  }
+
+  return lightningLogic.getForwardingEvents(startTime, endTime, indexOffset)
+    .then(events => res.json(events));
+}));
+
 router.get('/invoice', auth.jwt, safeHandler((req, res, next) => {
 
   const paymentRequest = req.query.paymentRequest;

@@ -1,9 +1,9 @@
-const bitcoindLogic = require('logic/bitcoind.js');
 const lightningLogic = require('logic/lightning.js');
+const networkLogic = require('logic/network.js');
 
 async function lndDetails() {
 
-  const calls = [bitcoindLogic.getExternalIP(),
+  const calls = [networkLogic.getExternalIP(),
     lightningLogic.getChannelBalance(),
     lightningLogic.getWalletBalance(),
     lightningLogic.getChannels(),

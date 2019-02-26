@@ -1,17 +1,6 @@
 const bitcoindService = require('services/bitcoind.js');
 const BitcoindError = require('models/errors.js').BitcoindError;
 
-async function getExternalIP() {
-  const peerInfo = await bitcoindService.getPeerInfo();
-  const peer = peerInfo.result.shift();
-
-  // Use the semi colon to account for ipv4 and ipv6
-  const semi = peer.addrlocal.lastIndexOf(':');
-  const externalIP = peer.addrlocal.substr(0, semi);
-
-  return {externalIP: externalIP}; // eslint-disable-line object-shorthand
-}
-
 async function getBlockCount() {
   const blockCount = await bitcoindService.getBlockCount();
 
@@ -110,7 +99,6 @@ async function getVersion() {
 }
 
 module.exports = {
-  getExternalIP,
   getBlockCount,
   getConnectionsCount,
   getStatus,

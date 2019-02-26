@@ -5,6 +5,10 @@ FROM arm32v7/node:8-stretch
 # can be downloaded here, $ docker run -v /usr/bin/qemu-arm-static:/usr/bin/qemu-arm-static --rm -ti arm32v7/debian:stretch-slim
 COPY ./qemu-arm-static /usr/bin/qemu-arm-static
 
+# install tools
+RUN apt-get update \
+  && apt-get install vim -y
+
 # Create app directory
 WORKDIR /usr/src/app
 

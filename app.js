@@ -7,8 +7,10 @@ const bodyParser = require('body-parser');
 const passport = require('passport');
 const cors = require('cors');
 
-const camelCaseReqMiddleware = require('middlewares/camelCaseRequest.js').camelCaseRequest;
+// Keep requestCorrelationId middleware as the first middleware. Otherwise we risk lo sing logs.
 const requestCorrelationMiddleware = require('middlewares/requestCorrelationId.js'); // eslint-disable-line id-length
+const camelCaseReqMiddleware = require('middlewares/camelCaseRequest.js').camelCaseRequest;
+const corsOptions = require('middlewares/cors.js').corsOptions;
 const errorHandleMiddleware = require('middlewares/errorHandling.js');
 require('middlewares/auth.js');
 
@@ -25,7 +27,7 @@ const pages = require('routes/v1/pages.js');
 const ping = require('routes/ping.js');
 const app = express();
 
-app.use(cors('*'));
+app.use(cors(corsOptions));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));

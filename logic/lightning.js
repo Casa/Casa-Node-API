@@ -91,6 +91,10 @@ function getChannelCount() {
     .then(response => ({count: response.length}));
 }
 
+function getForwardingEvents(startTime, endTime, indexOffset) {
+  return lndService.getForwardingEvents(startTime, endTime, indexOffset);
+}
+
 // Returns a list of all invoices.
 async function getInvoices() {
   const invoices = await lndService.getInvoices();
@@ -619,8 +623,9 @@ module.exports = {
   getChannelBalance,
   getChannelCount,
   getInvoices,
-  getOnChainTransactions,
   getChannels,
+  getForwardingEvents,
+  getOnChainTransactions,
   getPayments,
   getPendingChannels,
   getPublicUris,
