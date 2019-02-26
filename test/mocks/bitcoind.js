@@ -6,7 +6,7 @@ function getPeerInfo() {
       [{
         id: 0,
         addr: '18.212.212.24:18333',
-        addrlocal: '100.101.102.103:10249',
+        addrlocal: '10.11.12.13:10249',
         addrbind: '10.12.4.104:45686',
         services: '000000000000000d',
         relaytxes: true,
@@ -32,7 +32,7 @@ function getPeerInfo() {
         {
           id: 1,
           addr: '122.128.107.148:18333',
-          addrlocal: '100.101.102.103:47083',
+          addrlocal: '10.11.12.13:47083',
           addrbind: '10.12.4.104:41318',
           services: '000000000000000d',
           relaytxes: true,
@@ -58,7 +58,7 @@ function getPeerInfo() {
         {
           id: 4,
           addr: '94.130.201.174:18333',
-          addrlocal: '100.101.102.103:51897',
+          addrlocal: '10.11.12.13:51897',
           addrbind: '10.12.4.104:60258',
           services: '000000000000040d',
           relaytxes: true,
@@ -84,7 +84,7 @@ function getPeerInfo() {
         {
           id: 5,
           addr: '5.189.173.60:18333',
-          addrlocal: '100.101.102.103:27348',
+          addrlocal: '10.11.12.13:27348',
           addrbind: '10.12.4.104:41220',
           services: '000000000000040d',
           relaytxes: true,
@@ -110,7 +110,7 @@ function getPeerInfo() {
         {
           id: 6,
           addr: '142.93.121.198:18333',
-          addrlocal: '100.101.102.103:35127',
+          addrlocal: '10.11.12.13:35127',
           addrbind: '10.12.4.104:33322',
           services: '000000000000040d',
           relaytxes: true,
@@ -136,7 +136,7 @@ function getPeerInfo() {
         {
           id: 7,
           addr: '159.65.202.252:18333',
-          addrlocal: '100.101.102.103:21101',
+          addrlocal: '10.11.12.13:21101',
           addrbind: '10.12.4.104:57942',
           services: '000000000000040d',
           relaytxes: true,
@@ -162,7 +162,7 @@ function getPeerInfo() {
         {
           id: 8,
           addr: '206.189.39.36:18333',
-          addrlocal: '100.101.102.103:24189',
+          addrlocal: '10.11.12.13:24189',
           addrbind: '10.12.4.104:39760',
           services: '000000000000040d',
           relaytxes: true,
@@ -188,7 +188,7 @@ function getPeerInfo() {
         {
           id: 9,
           addr: '92.53.89.123:18333',
-          addrlocal: '100.101.102.103:25479',
+          addrlocal: '10.11.12.13:25479',
           addrbind: '10.12.4.104:39574',
           services: '000000000000040d',
           relaytxes: true,
@@ -216,6 +216,14 @@ function getPeerInfo() {
   };
 }
 
+function getPeerInfoEmpty() {
+  return {
+    result:
+      []
+  };
+}
+
 module.exports = {
   getPeerInfo,
+  getPeerInfoEmpty,
 };

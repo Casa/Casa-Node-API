@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const networkLogic = require('logic/network.js');
 const bitcoind = require('logic/bitcoind.js');
 const auth = require('middlewares/auth.js');
 const safeHandler = require('utils/safeHandler');
 
 router.get('/ip', auth.jwt, safeHandler((req, res) =>
-  bitcoind.getExternalIP()
+  networkLogic.getExternalIP()
     .then(ip => res.json(ip))
 ));
 

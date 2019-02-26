@@ -7,6 +7,22 @@ function generateAddress() {
   return '2NFGwqm9N9LomEh9mzQgofr1WGqkwaxPuWg';
 }
 
+function getForwardingEvents() {
+  return {
+    forwardingEvents: [
+      {
+        timestamp: '1548021945',
+        chanIdIn: '614599512239964161',
+        chanIdOut: '614438983628095489',
+        amtIn: '2',
+        amtOut: '1',
+        fee: '1'
+      }
+    ],
+    lastOffsetIndex: 1,
+  };
+}
+
 function getInfo() {
   return {
     identity_pubkey: '036dfd60929cb57836a65daa763ceb36a26f4691c670fca91f9ee8b9bf2b445fb8',
@@ -417,6 +433,7 @@ function getReversedOnChainTransactions() {
 module.exports = {
   generateAddress,
   getChannelBalance,
+  getForwardingEvents,
   getInfo,
   getWalletBalance,
   getOpenChannels,

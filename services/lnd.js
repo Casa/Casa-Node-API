@@ -25,6 +25,8 @@ if (process.env.MACAROON_DIR) {
 const lnrpcDescriptor = grpc.load(PROTO_FILE);
 const lnrpc = lnrpcDescriptor.lnrpc;
 
+const DEFAULT_RECOVERY_WINDOW = 250;
+
 // Initialize RPC client will attempt to connect to the lnd rpc with a tls.cert and admin.macaroon. If the wallet has
 // not bee created yet, then the client will only be initialized with the tls.cert. There may be times when lnd wallet
 // is reset and the tls.cert and admin.macaroon will change.
@@ -173,6 +175,17 @@ function getChannelBalance() {
     .then(({lightning}) => promiseify(lightning, lightning.ChannelBalance, {}, 'get channel balance'));
 }
 
+function getForwardingEvents(startTime, endTime, indexOffset) {
+  const rpcPayload = {
+    start_time: startTime,
+    end_time: endTime,
+    index_offset: indexOffset,
+  };
+
+  return initializeRPCClient()
+    .then(({lightning}) => promiseify(lightning, lightning.ForwardingHistory, rpcPayload, 'get forwarding events'));
+}
+
 function getInfo() {
   return initializeRPCClient()
     .then(({lightning}) => promiseify(lightning, lightning.GetInfo, {}, 'get lnd information'));
@@ -230,7 +243,8 @@ function initWallet(options) {
 
   const rpcPayload = {
     wallet_password: passwordBuff,
-    cipher_seed_mnemonic: options.mnemonic
+    cipher_seed_mnemonic: options.mnemonic,
+    recovery_window: DEFAULT_RECOVERY_WINDOW
   };
 
   return initializeRPCClient().then(({walletUnlocker, state}) => {
@@ -326,6 +340,7 @@ module.exports = {
   decodePaymentRequest,
   getChannelBalance,
   getClosedChannels,
+  getForwardingEvents,
   getInfo,
   getInvoices,
   getOpenChannels,

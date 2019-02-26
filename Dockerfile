@@ -1,6 +1,10 @@
 # specify the node base image with your desired version node:<version>
 FROM node:8
 
+# install tools
+RUN apt-get update \
+  && apt-get install vim -y
+
 # Create app directory
 WORKDIR /usr/src/app
 

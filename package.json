@@ -1,6 +1,6 @@
 {
   "name": "lnapi",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Application endpoints for Casa Lightning Node",
   "author": "Casa, INC",
   "scripts": {
@@ -15,7 +15,7 @@
     "body-parser": "^1.18.2",
     "camelize-keys": "^1.0.0",
     "continuation-local-storage": "^3.2.1",
-    "cors": "^2.8.4",
+    "cors": "^2.8.5",
     "debug": "^2.6.1",
     "express": "^4.16.3",
     "grpc": "^1.8.0",
