@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const passport = require('passport');
 const cors = require('cors');
 
-// Keep requestCorrelationId middleware as the first middleware. Otherwise we risk lo sing logs.
+// Keep requestCorrelationId middleware as the first middleware. Otherwise we risk losing logs.
 const requestCorrelationMiddleware = require('middlewares/requestCorrelationId.js'); // eslint-disable-line id-length
 const camelCaseReqMiddleware = require('middlewares/camelCaseRequest.js').camelCaseRequest;
 const corsOptions = require('middlewares/cors.js').corsOptions;
@@ -22,6 +22,7 @@ const channel = require('routes/v1/lnd/channel.js');
 const info = require('routes/v1/lnd/info.js');
 const lightning = require('routes/v1/lnd/lightning.js');
 const transaction = require('routes/v1/lnd/transaction.js');
+const util = require('routes/v1/lnd/util.js');
 const wallet = require('routes/v1/lnd/wallet.js');
 const pages = require('routes/v1/pages.js');
 const ping = require('routes/ping.js');
@@ -46,6 +47,7 @@ app.use('/v1/lnd/info', info);
 app.use('/v1/lnd/lightning', lightning);
 app.use('/v1/lnd/transaction', transaction);
 app.use('/v1/lnd/wallet', wallet);
+app.use('/v1/lnd/util', util);
 app.use('/v1/pages', pages);
 app.use('/ping', ping);
 

@@ -1,6 +1,7 @@
 /* eslint-disable max-len,id-length */
 /* globals requester, reset */
 const sinon = require('sinon');
+const bitcoindMocks = require('../../../mocks/bitcoind.js');
 
 describe('v1/bitcoind/info endpoint', () => {
   let token;
@@ -11,11 +12,13 @@ describe('v1/bitcoind/info endpoint', () => {
     token = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InRlc3QtdXNlciIsImlhdCI6MTU3NTIyNjQxMn0.N06esl2dhN1mFqn-0o4KQmmAaDW9OsHA39calpp_N9B3Ig3aXWgl064XAR9YVK0qwX7zMOnK9UrJ48KUZ-Sb4A';
   });
 
-  describe('/ip GET', function() {
+  describe('/addresses GET', function() {
     let bitcoindRPCGetPeerInfo;
+    let bitcoindRPCGetNetworkInfo;
 
     afterEach(() => {
       bitcoindRPCGetPeerInfo.restore();
+      bitcoindRPCGetNetworkInfo.restore();
     });
 
     it('should respond for an IPv4 address', done => {
@@ -27,8 +30,10 @@ describe('v1/bitcoind/info endpoint', () => {
             }
           ]
       }));
+      bitcoindRPCGetNetworkInfo = sinon.stub(require('bitcoind-rpc').prototype, 'getNetworkInfo')
+        .callsFake(callback => callback(undefined, bitcoindMocks.getNetworkInfoWithoutTor()));
       requester
-        .get('/v1/bitcoind/info/ip')
+        .get('/v1/bitcoind/info/addresses')
         .set('authorization', `JWT ${token}`)
         .end((err, res) => {
           if (err) {
@@ -36,8 +41,8 @@ describe('v1/bitcoind/info endpoint', () => {
           }
           res.should.have.status(200);
           res.should.be.json;
-          res.body.should.have.property('externalIP');
-          res.body.externalIP.should.equal('100.101.102.103');
+          res.body.length.should.equal(1);
+          res.body[0].should.equal('100.101.102.103');
           done();
         });
     });
@@ -51,8 +56,10 @@ describe('v1/bitcoind/info endpoint', () => {
             }
           ]
       }));
+      bitcoindRPCGetNetworkInfo = sinon.stub(require('bitcoind-rpc').prototype, 'getNetworkInfo')
+        .callsFake(callback => callback(undefined, bitcoindMocks.getNetworkInfoWithoutTor()));
       requester
-        .get('/v1/bitcoind/info/ip')
+        .get('/v1/bitcoind/info/addresses')
         .set('authorization', `JWT ${token}`)
         .end((err, res) => {
           if (err) {
@@ -60,15 +67,15 @@ describe('v1/bitcoind/info endpoint', () => {
           }
           res.should.have.status(200);
           res.should.be.json;
-          res.body.should.have.property('externalIP');
-          res.body.externalIP.should.equal('2001:0db8:85a3:0000:0000:8a2e:0370');
+          res.body.length.should.equal(1);
+          res.body[0].should.equal('2001:0db8:85a3:0000:0000:8a2e:0370');
           done();
         });
     });
 
     it('should 401 without a valid token', done => {
       requester
-        .get('/v1/bitcoind/info/ip')
+        .get('/v1/bitcoind/info/addresses')
         .set('authorization', 'JWT invalid')
         .end((err, res) => {
           if (err) {
@@ -82,7 +89,7 @@ describe('v1/bitcoind/info endpoint', () => {
     it('should 500 on error', done => {
       bitcoindRPCGetPeerInfo = sinon.stub(require('bitcoind-rpc').prototype, 'getPeerInfo').callsFake(callback => callback('error', {}));
       requester
-        .get('/v1/bitcoind/info/ip')
+        .get('/v1/bitcoind/info/addresses')
         .set('authorization', `JWT ${token}`)
         .end((err, res) => {
           if (err) {
