@@ -6,7 +6,7 @@ const bitcoindMocks = require('../mocks/bitcoind.js');
 
 describe('networkLogic', function() {
 
-  describe('getExternalIp', function() {
+  describe('getBitcoindAddresses', function() {
 
     it('should return an ipv4 address', function(done) {
 
@@ -18,14 +18,42 @@ describe('networkLogic', function() {
 
       const bitcoindServiceStub = {
         'services/bitcoind.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo)
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithoutTor()),
         }
       };
 
       const networkLogic = proxyquire('logic/network.js', bitcoindServiceStub);
 
-      networkLogic.getExternalIP().then(function(response) {
-        assert.equal(response.externalIP, ipv4);
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 1);
+        assert.equal(response[0], ipv4);
+
+        done();
+      });
+    });
+
+    it('should return an ipv4 address and onion address', function(done) {
+
+      const peerInfo = bitcoindMocks.getPeerInfo();
+
+      const ipv4 = '10.11.12.13';
+      const port = '10000';
+      peerInfo.result[0].addrlocal = ipv4 + ':' + port;
+
+      const bitcoindServiceStub = {
+        'services/bitcoind.js': {
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithTor()),
+        }
+      };
+
+      const networkLogic = proxyquire('logic/network.js', bitcoindServiceStub);
+
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 2);
+        assert.equal(response[0], ipv4);
+        assert.equal(true, response[1].includes('onion'));
 
         done();
       });
@@ -44,14 +72,16 @@ describe('networkLogic', function() {
 
       const bitcoindServiceStub = {
         'services/bitcoind.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo)
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithoutTor()),
         }
       };
 
       const networkLogic = proxyquire('logic/network.js', bitcoindServiceStub);
 
-      networkLogic.getExternalIP().then(function(response) {
-        assert.equal(response.externalIP, ipv6);
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 1);
+        assert.equal(response[0], ipv6);
 
         done();
       });
@@ -66,14 +96,16 @@ describe('networkLogic', function() {
 
       const bitcoindServiceStub = {
         'services/bitcoind.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo)
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithoutTor()),
         }
       };
 
       const networkLogic = proxyquire('logic/network.js', bitcoindServiceStub);
 
-      networkLogic.getExternalIP().then(function(response) {
-        assert.equal(response.externalIP, ipv4);
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 1);
+        assert.equal(response[0], ipv4);
 
         done();
       });
@@ -89,14 +121,16 @@ describe('networkLogic', function() {
 
       const bitcoindServiceStub = {
         'services/bitcoind.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo)
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithoutTor()),
         }
       };
 
       const networkLogic = proxyquire('logic/network.js', bitcoindServiceStub);
 
-      networkLogic.getExternalIP().then(function(response) {
-        assert.equal(response.externalIP, '10.11.12.13');
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 1);
+        assert.equal(response[0], '10.11.12.13');
 
         done();
       });
@@ -115,14 +149,16 @@ describe('networkLogic', function() {
           exec: () => Promise.resolve(ipInfo)
         },
         'services/bitcoind.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo)
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithoutTor()),
         }
       };
 
       const networkLogic = proxyquire('logic/network.js', serviceStubs);
 
-      networkLogic.getExternalIP().then(function(response) {
-        assert.equal(response.externalIP, ipv4);
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 1);
+        assert.equal(response[0], ipv4);
 
         done();
       });
@@ -141,14 +177,16 @@ describe('networkLogic', function() {
           exec: () => Promise.resolve(ipInfo)
         },
         'services/bitcoind.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo)
+          getPeerInfo: () => Promise.resolve(peerInfo),
+          getNetworkInfo: () => Promise.resolve(bitcoindMocks.getNetworkInfoWithoutTor()),
         }
       };
 
       const networkLogic = proxyquire('logic/network.js', serviceStubs);
 
-      networkLogic.getExternalIP().then(function(response) {
-        assert.equal(response.externalIP, ipv6);
+      networkLogic.getBitcoindAddresses().then(function(response) {
+        assert.equal(response.length, 1);
+        assert.equal(response[0], ipv6);
 
         done();
       });

@@ -3,7 +3,8 @@ FROM node:8
 
 # install tools
 RUN apt-get update \
-  && apt-get install vim -y
+  && apt-get install vim -y \
+  && apt-get install rsync -y
 
 # Create app directory
 WORKDIR /usr/src/app

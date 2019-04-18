@@ -1,18 +1,38 @@
 const bitcoindService = require('services/bitcoind.js');
 const bashService = require('services/bash.js');
 
-async function getExternalIP() {
+async function getBitcoindAddresses() {
 
+  const addresses = [];
+
+  // Find standard ip address
   const peerInfo = (await bitcoindService.getPeerInfo()).result;
 
-  let externalIP;
   if (peerInfo.length === 0) {
-    externalIP = await getExternalIPFromIPInfo();
+    addresses.push(await getExternalIPFromIPInfo());
   } else {
-    externalIP = getMostValidatedIP(peerInfo);
+
+    const mostValidIp = getMostValidatedIP(peerInfo);
+
+    // TODO don't call third party service if running with TOR_ONLY
+    if (mostValidIp.includes('onion')) {
+      addresses.push(await getExternalIPFromIPInfo());
+    } else {
+      addresses.push(mostValidIp);
+    }
   }
 
-  return {externalIP: externalIP}; // eslint-disable-line object-shorthand
+  // Try to find that Tor onion address.
+  const networkInfo = (await bitcoindService.getNetworkInfo()).result;
+
+  if (Object.prototype.hasOwnProperty.call(networkInfo, 'localaddresses')
+    && networkInfo.localaddresses.length > 0) {
+
+    // If Tor is initialized there should only be one local address
+    addresses.push(networkInfo.localaddresses[0].address);
+  }
+
+  return addresses; // eslint-disable-line object-shorthand
 }
 
 async function getExternalIPFromIPInfo() {
@@ -65,5 +85,5 @@ function getMostValidatedIP(peerInfo) {
 }
 
 module.exports = {
-  getExternalIP,
+  getBitcoindAddresses,
 };

@@ -3,7 +3,7 @@ const networkLogic = require('logic/network.js');
 
 async function lndDetails() {
 
-  const calls = [networkLogic.getExternalIP(),
+  const calls = [networkLogic.getBitcoindAddresses(),
     lightningLogic.getChannelBalance(),
     lightningLogic.getWalletBalance(),
     lightningLogic.getChannels(),

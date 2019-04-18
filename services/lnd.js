@@ -259,8 +259,13 @@ function initWallet(options) {
 
 // Returns a list of all invoices.
 function getInvoices() {
+  const rpcPayload = {
+    reversed: true, // Returns most recent
+    num_max_invoices: 100,
+  };
+
   return initializeRPCClient()
-    .then(({lightning}) => promiseify(lightning, lightning.ListInvoices, {}, 'list invoices'));
+    .then(({lightning}) => promiseify(lightning, lightning.ListInvoices, rpcPayload, 'list invoices'));
 }
 
 // Returns a list of all on chain transactions.

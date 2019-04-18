@@ -1,4 +1,94 @@
-/* eslint-disable indent, id-length */
+/* eslint-disable indent, id-length, camelcase */
+
+function getNetworkInfoWithTor() {
+  return {
+    result: {
+      version: 170100,
+      subversion: '/Satoshi:0.17.1/',
+      protocolversion: 70015,
+      localservices: '000000000000040d',
+      localrelay: true,
+      timeoffset: -1,
+      networkactive: true,
+      connections: 10,
+      networks: [
+        {
+          name: 'ipv4',
+          limited: false,
+          reachable: true,
+          proxy: '127.0.0.1:9050',
+          proxy_randomize_credentials: true,
+        },
+        {
+          name: 'ipv6',
+          limited: false,
+          reachable: true,
+          proxy: '127.0.0.1:9050',
+          proxy_randomize_credentials: true,
+        },
+        {
+          name: 'onion',
+          limited: false,
+          reachable: true,
+          proxy: '127.0.0.1:9050',
+          proxy_randomize_credentials: true,
+        }
+      ],
+      relayfee: 0.00001000,
+      incrementalfee: 0.00001000,
+      localaddresses: [
+        {
+          address: 'zfd4bzpkmr3zqxs3.onion',
+          port: 8333,
+          score: 14
+        }
+      ],
+      warnings: '',
+    }
+  };
+}
+
+function getNetworkInfoWithoutTor() {
+  return {
+    result: {
+      version: 170100,
+      subversion: '/Satoshi:0.17.1/',
+      protocolversion: 70015,
+      localservices: '000000000000040d',
+      localrelay: true,
+      timeoffset: -1,
+      networkactive: true,
+      connections: 10,
+      networks: [
+        {
+          name: 'ipv4',
+          limited: false,
+          reachable: true,
+          proxy: '127.0.0.1:9050',
+          proxy_randomize_credentials: true,
+        },
+        {
+          name: 'ipv6',
+          limited: false,
+          reachable: true,
+          proxy: '127.0.0.1:9050',
+          proxy_randomize_credentials: true,
+        },
+        {
+          name: 'onion',
+          limited: true,
+          reachable: false,
+          proxy: '',
+          proxy_randomize_credentials: false,
+        }
+      ],
+      relayfee: 0.00001000,
+      incrementalfee: 0.00001000,
+      localaddresses: [],
+      warnings: '',
+    }
+  };
+}
 
 function getPeerInfo() {
   return {
@@ -224,6 +314,8 @@ function getPeerInfoEmpty() {
 }
 
 module.exports = {
+  getNetworkInfoWithTor,
+  getNetworkInfoWithoutTor,
   getPeerInfo,
-  getPeerInfoEmpty,
+  getPeerInfoEmpty
 };
