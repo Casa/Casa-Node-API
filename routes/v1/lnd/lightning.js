@@ -6,7 +6,7 @@ const lightningLogic = require('logic/lightning.js');
 const validator = require('utils/validator.js');
 const safeHandler = require('utils/safeHandler');
 
-router.post('/addInvoice', auth.jwt, safeHandler((req, res, next) => {
+router.post('/addInvoice', safeHandler((req, res, next) => {
 
   const amt = req.body.amt;
   const memo = req.body.memo || '';
