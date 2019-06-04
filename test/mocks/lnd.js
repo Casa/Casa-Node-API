@@ -1,10 +1,18 @@
 /* eslint-disable camelcase, id-length, max-len */
+
+function generateAddress() {
+  return '2NFGwqm9N9LomEh9mzQgofr1WGqkwaxPuWg';
+}
+
 function getChannelBalance() {
   return 42000;
 }
 
-function generateAddress() {
-  return '2NFGwqm9N9LomEh9mzQgofr1WGqkwaxPuWg';
+function getEstimateFee() {
+  return {
+    feeSat: '44115',
+    feerateSatPerByte: '83',
+  };
 }
 
 function getForwardingEvents() {
@@ -430,9 +438,57 @@ function getReversedOnChainTransactions() {
   ];
 }
 
+function getUnspectUtxos() {
+  return {
+    utxos: [
+      {
+        address_type: 0,
+        address: 'bc1qp6dxazrsju834sucudvcxy6t3tem3henkf9dfe',
+        amount_sat: 167288,
+        pk_script: '00140e9a6e8870970f1ac398e35983134b8af3b8df33',
+        outpoint: '75d342c126473f2bc26c23111b4cc4f8712532a0387d9bb70156d7efc8528efd:1',
+        confirmations: 51
+      },
+      {
+        address_type: 0,
+        address: 'bc1qp6dxazrsju834sucudvcxy6t3tem3henkf9dfe',
+        amount_sat: 44116,
+        pk_script: '00140e9a6e8870970f1ac398e35983134b8af3b8df33',
+        outpoint: '75d342c126473f2bc26c23111b4cc4f8712532a0387d9bb70156d7efc8528efd:1',
+        confirmations: 3307
+      },
+      {
+        address_type: 0,
+        address: 'bc1qp6dxazrsju834sucudvcxy6t3tem3henkf9dfe',
+        amount_sat: 30094,
+        pk_script: '00140e9a6e8870970f1ac398e35983134b8af3b8df33',
+        outpoint: '75d342c126473f2bc26c23111b4cc4f8712532a0387d9bb70156d7efc8528efd:1',
+        confirmations: 3996
+      },
+      {
+        address_type: 0,
+        address: 'bc1qp6dxazrsju834sucudvcxy6t3tem3henkf9dfe',
+        amount_sat: 185046,
+        pk_script: '00140e9a6e8870970f1ac398e35983134b8af3b8df33',
+        outpoint: '75d342c126473f2bc26c23111b4cc4f8712532a0387d9bb70156d7efc8528efd:1',
+        confirmations: 26309
+      },
+      {
+        address_type: 1,
+        address: '2NFGwqm9N9LomEh9mzQgofr1WGqkwaxPuWg',
+        amount_sat: 159770,
+        pk_script: '00140e9a6e8870970f1ac398e35983134b8af3b8df33',
+        outpoint: '75d342c126473f2bc26c23111b4cc4f8712532a0387d9bb70156d7efc8528efd:1',
+        confirmations: 27335
+      }
+    ]
+  };
+}
+
 module.exports = {
   generateAddress,
   getChannelBalance,
+  getEstimateFee,
   getForwardingEvents,
   getInfo,
   getWalletBalance,
@@ -441,4 +497,5 @@ module.exports = {
   getPendingChannels,
   getManagedChannelsFile,
   getReversedOnChainTransactions,
+  getUnspectUtxos,
 };

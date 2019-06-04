@@ -8,7 +8,7 @@ const safeHandler = require('utils/safeHandler');
 
 router.post('/addInvoice', safeHandler((req, res, next) => {
 
-  const amt = req.body.amt;
+  const amt = req.body.amt; // Denominated in Satoshi
   const memo = req.body.memo || '';
 
   try {
