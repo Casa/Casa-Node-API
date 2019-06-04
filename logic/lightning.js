@@ -27,6 +27,21 @@ const PENDING_CHANNEL_TYPES = [PENDING_OPEN_CHANNELS, PENDING_CLOSING_CHANNELS, 
 const MAINNET_GENESIS_BLOCK_TIMESTAMP = 1231035305;
 const TESTNET_GENESIS_BLOCK_TIMESTAMP = 1296717402;
 
+const FAST_BLOCK_CONF_TARGET = 1;
+const NORMAL_BLOCK_CONF_TARGET = 2;
+const SLOW_BLOCK_CONF_TARGET = 5;
+const CHEAPEST_BLOCK_CONF_TARGET = 100;
+
+const INSUFFICIENT_FUNDS_ERROR = {
+  code: 'INSUFFICIENT_FUNDS',
+  text: 'Lower amount or increase confirmation target.'
+};
+
+const OUTPUT_IS_DUST_ERROR = {
+  code: 'OUTPUT_IS_DUST',
+  text: 'Transaction output is dust.'
+};
+
 // Creates a new invoice; more commonly known as a payment request.
 function addInvoice(amt, memo) {
   return lndService.addInvoice(amt, memo);
@@ -59,6 +74,83 @@ async function closeChannel(txHash, index, force) {
 // Decode the payment request into useful information.
 function decodePaymentRequest(paymentRequest) {
   return lndService.decodePaymentRequest(paymentRequest);
+}
+
+// Estimate an on chain transaction fee.
+async function estimateFee(address, amt, confTarget, sweep) {
+
+  if (sweep) {
+
+    const utxos = (await lndService.listUnspent()).utxos;
+    const balance = parseInt((await lndService.getWalletBalance()).totalBalance, 10);
+
+    utxos.sort(compareUtxo);
+
+    var amtToEstimate = balance + 1;
+
+    // We start to estimate a fee by forcing the estimate amount to use the maximum amount of utxos. If that fails, we
+    // subtract the next smallest utxo until we run out of utxos. If we run out of utxos, that means we are unable to
+    // create a transaction for the given confirmation target.
+    for (const utxo of utxos) {
+      amtToEstimate -= utxo.amountSat;
+
+      try {
+        if (confTarget === 0) {
+          return await estimateFeeGroup(address, amtToEstimate);
+        } else {
+          return await lndService.estimateFee(address, amtToEstimate, confTarget);
+        }
+      } catch (error) {
+        // no op
+      }
+    }
+
+    return INSUFFICIENT_FUNDS_ERROR;
+  } else {
+
+    try {
+      if (confTarget === 0) {
+        return await estimateFeeGroup(address, amt);
+      } else {
+        return await lndService.estimateFee(address, amt, confTarget);
+      }
+    } catch (error) {
+      if (error.error.details === 'transaction output is dust') {
+        return OUTPUT_IS_DUST_ERROR;
+      }
+
+      return INSUFFICIENT_FUNDS_ERROR;
+    }
+  }
+}
+
+
+async function estimateFeeGroup(address, amt) {
+  const calls = [lndService.estimateFee(address, amt, FAST_BLOCK_CONF_TARGET),
+    lndService.estimateFee(address, amt, NORMAL_BLOCK_CONF_TARGET),
+    lndService.estimateFee(address, amt, SLOW_BLOCK_CONF_TARGET),
+    lndService.estimateFee(address, amt, CHEAPEST_BLOCK_CONF_TARGET),
+  ];
+
+  const [fast, normal, slow, cheapest] = await Promise.all(calls.map(p => p.catch(() => INSUFFICIENT_FUNDS_ERROR)));
+
+  return {
+    fast: fast,
+    normal: normal,
+    slow: slow,
+    cheapest: cheapest
+  };
+}
+
+function compareUtxo(a, b) {
+  if (parseInt(a.amountSat, 10) < parseInt(b.amountSat, 10)) {
+    return -1;
+  }
+  if (parseInt(a.amountSat, 10) > parseInt(b.amountSat, 10)) {
+    return 1;
+  }
+
+  return 0;
 }
 
 // Generates a new on chain segwit bitcoin address.
@@ -203,6 +295,14 @@ const getChannels = async() => {
 
   for (const channel of pendingChannels.pendingOpenChannels) {
     channel.type = 'PENDING_OPEN_CHANNEL';
+
+    // Make our best guess as to if this channel was created by us.
+    if (channel.channel.remoteBalance === '0') {
+      channel.initiator = true;
+    } else {
+      channel.initiator = false;
+    }
+
     allChannels.push(channel);
   }
 
@@ -256,6 +356,10 @@ const getChannels = async() => {
       // We might have invalid channels that dne in the onChainTxList. Skip these channels
       const knownChannel = chainTxns[getTxnHashFromChannelPoint(channel.channelPoint)];
       if (!knownChannel) {
+        channel.managed = false;
+        channel.name = '';
+        channel.purpose = '';
+
         continue;
       }
       const numConfirmations = knownChannel.numConfirmations;
@@ -463,8 +567,14 @@ async function removeManagedChannel(fundingTxId, index) {
 */
 
 // Send bitcoins on chain to the given address with the given amount. Sats per byte is optional.
-function sendCoins(addr, amt, satPerByte) {
-  return lndService.sendCoins(addr, amt, satPerByte);
+function sendCoins(addr, amt, satPerByte, sendAll) {
+
+  // Lnd requires we ignore amt if sendAll is true.
+  if (sendAll) {
+    return lndService.sendCoins(addr, undefined, satPerByte, sendAll);
+  }
+
+  return lndService.sendCoins(addr, amt, satPerByte, sendAll);
 }
 
 // Sets the managed channel data store.
@@ -618,6 +728,7 @@ module.exports = {
   cancelSendCoinsWhenAvailable,
   closeChannel,
   decodePaymentRequest,
+  estimateFee,
   generateAddress,
   generateSeed,
   getChannelBalance,

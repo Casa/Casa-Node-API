@@ -30,7 +30,7 @@ const DEFAULT_RECOVERY_WINDOW = 250;
 // Initialize RPC client will attempt to connect to the lnd rpc with a tls.cert and admin.macaroon. If the wallet has
 // not bee created yet, then the client will only be initialized with the tls.cert. There may be times when lnd wallet
 // is reset and the tls.cert and admin.macaroon will change.
-function initializeRPCClient() {
+async function initializeRPCClient() {
   return diskService.readFile(TLS_FILE)
     .then(lndCert => {
       const sslCreds = grpc.credentials.createSsl(lndCert);
@@ -60,7 +60,7 @@ function initializeRPCClient() {
     }));
 }
 
-function promiseify(rpcObj, rpcFn, payload, description) {
+async function promiseify(rpcObj, rpcFn, payload, description) {
   return new Promise((resolve, reject) => {
     try {
       rpcFn.call(rpcObj, payload, (error, grpcResponse) => {
@@ -149,6 +149,20 @@ function decodePaymentRequest(paymentRequest) {
 
       return invoice;
     });
+}
+
+async function estimateFee(address, amt, confTarget) {
+  const addrToAmount = {};
+  addrToAmount[address] = amt;
+
+  const rpcPayload = {
+    AddrToAmount: addrToAmount,
+    target_conf: confTarget,
+  };
+
+  const conn = await initializeRPCClient();
+
+  return await promiseify(conn.lightning, conn.lightning.estimateFee, rpcPayload, 'estimate fee request');
 }
 
 function generateAddress() {
@@ -275,6 +289,17 @@ function getOnChainTransactions() {
     .then(grpcResponse => grpcResponse.transactions);
 }
 
+async function listUnspent() {
+  const rpcPayload = {
+    min_confs: 0,
+    max_confs: 10000000, // Use arbitrarily high maximum confirmation limit.
+  };
+
+  const conn = await initializeRPCClient();
+
+  return await promiseify(conn.lightning, conn.lightning.listUnspent, rpcPayload, 'estimate fee request');
+}
+
 function openChannel(pubKey, amt, satPerByte) {
   const rpcPayload = {
     node_pubkey_string: pubKey,
@@ -291,10 +316,11 @@ function openChannel(pubKey, amt, satPerByte) {
     .then(({lightning}) => promiseify(lightning, lightning.OpenChannelSync, rpcPayload, 'open channel'));
 }
 
-function sendCoins(addr, amt, satPerByte) {
+function sendCoins(addr, amt, satPerByte, sendAll) {
   const rpcPayload = {
     addr: addr, // eslint-disable-line object-shorthand
-    amount: amt
+    amount: amt,
+    send_all: sendAll,
   };
 
   if (satPerByte) {
@@ -343,6 +369,7 @@ module.exports = {
   closeChannel,
   connectToPeer,
   decodePaymentRequest,
+  estimateFee,
   getChannelBalance,
   getClosedChannels,
   getForwardingEvents,
@@ -357,6 +384,7 @@ module.exports = {
   generateSeed,
   getOnChainTransactions,
   initWallet,
+  listUnspent,
   openChannel,
   sendCoins,
   sendPaymentSync,
