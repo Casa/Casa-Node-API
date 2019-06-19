@@ -10,6 +10,22 @@ router.get('/', auth.jwt, safeHandler((req, res) =>
     .then(channels => res.json(channels))
 ));
 
+router.get('/estimateFee', auth.jwt, safeHandler(async(req, res, next) => {
+
+  const amt = req.query.amt; // Denominated in Satoshi
+  const confTarget = req.query.confTarget;
+
+  try {
+    validator.isPositiveIntegerOrZero(confTarget);
+    validator.isPositiveInteger(amt);
+  } catch (error) {
+    return next(error);
+  }
+
+  return await lightningLogic.estimateChannelOpenFee(parseInt(amt, 10), parseInt(confTarget, 10))
+    .then(response => res.json(response));
+}));
+
 router.get('/pending', auth.jwt, safeHandler((req, res) =>
   lightningLogic.getPendingChannels()
     .then(channels => res.json(channels))

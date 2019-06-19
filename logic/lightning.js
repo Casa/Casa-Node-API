@@ -28,13 +28,20 @@ const MAINNET_GENESIS_BLOCK_TIMESTAMP = 1231035305;
 const TESTNET_GENESIS_BLOCK_TIMESTAMP = 1296717402;
 
 const FAST_BLOCK_CONF_TARGET = 1;
-const NORMAL_BLOCK_CONF_TARGET = 2;
-const SLOW_BLOCK_CONF_TARGET = 5;
-const CHEAPEST_BLOCK_CONF_TARGET = 100;
+const NORMAL_BLOCK_CONF_TARGET = 6;
+const SLOW_BLOCK_CONF_TARGET = 24;
+const CHEAPEST_BLOCK_CONF_TARGET = 144;
+
+const OPEN_CHANNEL_EXTRA_WEIGHT = 10;
 
 const INSUFFICIENT_FUNDS_ERROR = {
   code: 'INSUFFICIENT_FUNDS',
   text: 'Lower amount or increase confirmation target.'
+};
+
+const INVALID_ADDRESS = {
+  code: 'INVALID_ADDRESS',
+  text: 'Please validate the Bitcoin address is correct.'
 };
 
 const OUTPUT_IS_DUST_ERROR = {
@@ -76,6 +83,33 @@ function decodePaymentRequest(paymentRequest) {
   return lndService.decodePaymentRequest(paymentRequest);
 }
 
+// Estimate the cost of opening a channel. We do this by repurposing the existing estimateFee grpc route from lnd. We
+// generate our own unused address and then feed that into the existing call. Then we add an extra 10 sats per
+// feerateSatPerByte. This is because the actual cost is slightly more than the default one output estimate.
+async function estimateChannelOpenFee(amt, confTarget) {
+  const address = (await generateAddress()).address;
+  const baseFeeEstimate = await estimateFee(address, amt, confTarget, false);
+
+  if (confTarget === 0) {
+    const keys = Object.keys(baseFeeEstimate);
+
+    for (const key of keys) {
+
+      if (baseFeeEstimate[key].feeSat) {
+        baseFeeEstimate[key].feeSat = String(parseInt(baseFeeEstimate[key].feeSat, 10) + OPEN_CHANNEL_EXTRA_WEIGHT
+          * baseFeeEstimate[key].feerateSatPerByte);
+      }
+
+    }
+
+  } else if (baseFeeEstimate.feeSat) {
+    baseFeeEstimate.feeSat = String(parseInt(baseFeeEstimate.feeSat, 10) + OPEN_CHANNEL_EXTRA_WEIGHT
+      * baseFeeEstimate.feerateSatPerByte);
+  }
+
+  return baseFeeEstimate;
+}
+
 // Estimate an on chain transaction fee.
 async function estimateFee(address, amt, confTarget, sweep) {
 
@@ -115,15 +149,10 @@ async function estimateFee(address, amt, confTarget, sweep) {
         return await lndService.estimateFee(address, amt, confTarget);
       }
     } catch (error) {
-      if (error.error.details === 'transaction output is dust') {
-        return OUTPUT_IS_DUST_ERROR;
-      }
-
-      return INSUFFICIENT_FUNDS_ERROR;
+      return handleEstimateFeeError(error);
     }
   }
 }
-
 
 async function estimateFeeGroup(address, amt) {
   const calls = [lndService.estimateFee(address, amt, FAST_BLOCK_CONF_TARGET),
@@ -132,14 +161,25 @@ async function estimateFeeGroup(address, amt) {
     lndService.estimateFee(address, amt, CHEAPEST_BLOCK_CONF_TARGET),
   ];
 
-  const [fast, normal, slow, cheapest] = await Promise.all(calls.map(p => p.catch(() => INSUFFICIENT_FUNDS_ERROR)));
+  const [fast, normal, slow, cheapest]
+    = await Promise.all(calls.map(p => p.catch(error => handleEstimateFeeError(error))));
 
   return {
-    fast: fast,
-    normal: normal,
-    slow: slow,
-    cheapest: cheapest
+    fast: fast, // eslint-disable-line object-shorthand
+    normal: normal, // eslint-disable-line object-shorthand
+    slow: slow, // eslint-disable-line object-shorthand
+    cheapest: cheapest, // eslint-disable-line object-shorthand
   };
+}
+
+function handleEstimateFeeError(error) {
+  if (error.error.details === 'transaction output is dust') {
+    return OUTPUT_IS_DUST_ERROR;
+  } else if (error.error.details === 'insufficient funds available to construct transaction') {
+    return INSUFFICIENT_FUNDS_ERROR;
+  }
+
+  return INVALID_ADDRESS;
 }
 
 function compareUtxo(a, b) {
@@ -154,8 +194,8 @@ function compareUtxo(a, b) {
 }
 
 // Generates a new on chain segwit bitcoin address.
-function generateAddress() {
-  return lndService.generateAddress();
+async function generateAddress() {
+  return await lndService.generateAddress();
 }
 
 // Generates a new 24 word seed phrase.
@@ -728,6 +768,7 @@ module.exports = {
   cancelSendCoinsWhenAvailable,
   closeChannel,
   decodePaymentRequest,
+  estimateChannelOpenFee,
   estimateFee,
   generateAddress,
   generateSeed,

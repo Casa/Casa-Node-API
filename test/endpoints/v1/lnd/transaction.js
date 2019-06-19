@@ -136,6 +136,29 @@ describe('v1/lnd/transaction endpoints', () => {
         });
     });
 
+    it('should return invalid address', done => {
+
+      lndEstimateFee = sinon.stub(require('../../../../services/lnd.js'), 'estimateFee')
+        .throws(new LndError('Unable to estimate fee request', {details: 'checksum mismatch'}));
+
+      requester
+        .get('/v1/lnd/transaction/estimateFee?address=2NFGwqm9N9LomEh9mzQgofr1WGqkwaxPuWg&amt=100000&confTarget=1&sweep=false')
+        .set('authorization', `JWT ${token}`)
+        .end((err, res) => {
+          if (err) {
+            done(err);
+          }
+          res.should.have.status(200);
+          res.should.be.json;
+          res.body.should.have.property('code');
+          res.body.code.should.equal('INVALID_ADDRESS');
+          res.body.should.have.property('text');
+          res.body.text.should.equal('Please validate the Bitcoin address is correct.');
+
+          done();
+        });
+    });
+
     it('should return a sweep estimate, group', done => {
 
       const estimateFee = lndMocks.getEstimateFee();

@@ -165,13 +165,14 @@ async function estimateFee(address, amt, confTarget) {
   return await promiseify(conn.lightning, conn.lightning.estimateFee, rpcPayload, 'estimate fee request');
 }
 
-function generateAddress() {
+async function generateAddress() {
   const rpcPayload = {
     type: 1
   };
 
-  return initializeRPCClient()
-    .then(({lightning}) => promiseify(lightning, lightning.NewAddress, rpcPayload, 'generate address'));
+  const conn = await initializeRPCClient();
+
+  return await promiseify(conn.lightning, conn.lightning.NewAddress, rpcPayload, 'generate address');
 }
 
 function generateSeed() {
@@ -336,7 +337,7 @@ function sendCoins(addr, amt, satPerByte, sendAll) {
 function sendPaymentSync(paymentRequest, amt) {
   const rpcPayload = {
     payment_request: paymentRequest,
-    amt: amt,
+    amt: amt, // eslint-disable-line object-shorthand
   };
 
   return initializeRPCClient()
