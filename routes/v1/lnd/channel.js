@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const validator = require('utils/validator.js');
 const lightningLogic = require('logic/lightning.js');
 const auth = require('middlewares/auth.js');
+const ValidationError = require('models/errors.js').ValidationError;
 const safeHandler = require('utils/safeHandler');
+const validator = require('utils/validator.js');
+
+const DEFAULT_TIME_LOCK_DELTA = 144; // eslint-disable-line no-magic-numbers
 
 router.get('/', auth.jwt, safeHandler((req, res) =>
   lightningLogic.getChannels()
@@ -30,6 +33,47 @@ router.get('/pending', auth.jwt, safeHandler((req, res) =>
   lightningLogic.getPendingChannels()
     .then(channels => res.json(channels))
 ));
+
+router.get('/policy', auth.jwt, safeHandler((req, res) =>
+  lightningLogic.getChannelPolicy()
+    .then(policies => res.json(policies))
+));
+
+router.put('/policy', auth.jwt, safeHandler((req, res, next) => {
+  const global = req.body.global || false;
+  const chanPoint = req.body.chanPoint;
+  const baseFeeMsat = req.body.baseFeeMsat;
+  const feeRate = req.body.feeRate;
+  const timeLockDelta = req.body.timeLockDelta || DEFAULT_TIME_LOCK_DELTA;
+  let fundingTxid;
+  let outputIndex;
+
+  try {
+    validator.isBoolean(global);
+
+    if (!global) {
+      [fundingTxid, outputIndex] = chanPoint.split(':');
+
+      if (fundingTxid === undefined || outputIndex === undefined) {
+        throw new ValidationError('Invalid channelPoint.');
+      }
+
+      validator.isAlphanumeric(fundingTxid);
+      validator.isPositiveIntegerOrZero(outputIndex);
+    }
+
+    validator.isPositiveIntegerOrZero(baseFeeMsat);
+    validator.isDecimal(feeRate + '');
+    validator.isPositiveInteger(timeLockDelta);
+
+  } catch (error) {
+    return next(error);
+  }
+
+  return lightningLogic.updateChannelPolicy(global, fundingTxid, parseInt(outputIndex, 10), baseFeeMsat, feeRate,
+    timeLockDelta)
+    .then(res.json());
+}));
 
 router.delete('/close', auth.jwt, safeHandler((req, res, next) => {
 

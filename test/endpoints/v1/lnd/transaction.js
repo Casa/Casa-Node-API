@@ -13,6 +13,65 @@ describe('v1/lnd/transaction endpoints', () => {
     token = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InRlc3QtdXNlciIsImlhdCI6MTU3NTIyNjQxMn0.N06esl2dhN1mFqn-0o4KQmmAaDW9OsHA39calpp_N9B3Ig3aXWgl064XAR9YVK0qwX7zMOnK9UrJ48KUZ-Sb4A';
   });
 
+  describe('/ GET', function() {
+
+    let lndListChainTxns;
+    let lndOpenChannels;
+    let lndClosedChannels;
+    let lndPendingChannels;
+
+    afterEach(() => {
+      lndListChainTxns.restore();
+      lndOpenChannels.restore();
+      lndClosedChannels.restore();
+      lndPendingChannels.restore();
+    });
+
+    it('should return one of each transaction type', done => {
+
+      const onChainRecieved = lndMocks.getOnChainTransaction();
+      const onChainSent = lndMocks.getOnChainTransaction();
+      onChainSent.amount = '-1000000';
+      const onChainChannelClosed = lndMocks.getOnChainTransaction();
+      const onChainChannelOpen = lndMocks.getOnChainTransaction();
+      const onChainPendingOpen = lndMocks.getOnChainTransaction('c0b7045595f4f5c024af22312055497e99ed8b7b62b0c7e181d16382a07ae58b');
+      const onChainPendingClose = lndMocks.getOnChainTransaction('653c87589da62b5fef18538a62ecce154f94236f158d1148efab98136756ed36');
+
+      const openChannels = [lndMocks.getChannelOpen(onChainChannelOpen.txHash)];
+      const closedChannel = [lndMocks.getChannelClosed(undefined, onChainChannelClosed.txHash)];
+      const pendingChannels = lndMocks.getPendingChannels();
+
+      lndListChainTxns = sinon.stub(require('../../../../services/lnd.js'), 'getOnChainTransactions')
+        .resolves([onChainPendingClose, onChainPendingOpen, onChainRecieved, onChainSent, onChainChannelClosed, onChainChannelOpen]);
+      lndOpenChannels = sinon.stub(require('../../../../services/lnd.js'), 'getOpenChannels')
+        .resolves(openChannels);
+      lndClosedChannels = sinon.stub(require('../../../../services/lnd.js'), 'getClosedChannels')
+        .resolves(closedChannel);
+      lndPendingChannels = sinon.stub(require('../../../../services/lnd.js'), 'getPendingChannels')
+        .resolves(pendingChannels);
+
+      requester
+        .get('/v1/lnd/transaction')
+        .set('authorization', `JWT ${token}`)
+        .end((err, res) => {
+          if (err) {
+            done(err);
+          }
+          res.should.have.status(200);
+          res.should.be.json;
+
+          res.body[0].type.should.equal('CHANNEL_OPEN');
+          res.body[1].type.should.equal('CHANNEL_CLOSE');
+          res.body[2].type.should.equal('ON_CHAIN_TRANSACTION_SENT');
+          res.body[3].type.should.equal('ON_CHAIN_TRANSACTION_RECEIVED');
+          res.body[4].type.should.equal('PENDING_OPEN');
+          res.body[5].type.should.equal('PENDING_CLOSE');
+
+          done();
+        });
+    });
+  });
+
   describe('/estimateFee GET', function() {
     let lndEstimateFee;
     let lndUnspentUtxos;
@@ -162,14 +221,10 @@ describe('v1/lnd/transaction endpoints', () => {
     it('should return a sweep estimate, group', done => {
 
       const estimateFee = lndMocks.getEstimateFee();
-      const unspentUtxos = lndMocks.getUnspectUtxos();
       const walletBalance = lndMocks.getWalletBalance();
 
       lndEstimateFee = sinon.stub(require('../../../../services/lnd.js'), 'estimateFee')
         .resolves(estimateFee);
-
-      lndUnspentUtxos = sinon.stub(require('../../../../services/lnd.js'), 'listUnspent')
-        .resolves(unspentUtxos);
 
       lndWalletBalance = sinon.stub(require('../../../../services/lnd.js'), 'getWalletBalance')
         .resolves(walletBalance);
@@ -203,14 +258,10 @@ describe('v1/lnd/transaction endpoints', () => {
     it('should return a sweep estimate', done => {
 
       const estimateFee = lndMocks.getEstimateFee();
-      const unspentUtxos = lndMocks.getUnspectUtxos();
       const walletBalance = lndMocks.getWalletBalance();
 
       lndEstimateFee = sinon.stub(require('../../../../services/lnd.js'), 'estimateFee')
         .resolves(estimateFee);
-
-      lndUnspentUtxos = sinon.stub(require('../../../../services/lnd.js'), 'listUnspent')
-        .resolves(unspentUtxos);
 
       lndWalletBalance = sinon.stub(require('../../../../services/lnd.js'), 'getWalletBalance')
         .resolves(walletBalance);
@@ -236,14 +287,10 @@ describe('v1/lnd/transaction endpoints', () => {
 
     it('should return insufficient funds for sweep estimate', done => {
 
-      const unspentUtxos = lndMocks.getUnspectUtxos();
       const walletBalance = lndMocks.getWalletBalance();
 
       lndEstimateFee = sinon.stub(require('../../../../services/lnd.js'), 'estimateFee')
         .throws(new LndError('Unable to estimate fee request', {details: 'insufficient funds available to construct transaction'}));
-
-      lndUnspentUtxos = sinon.stub(require('../../../../services/lnd.js'), 'listUnspent')
-        .resolves(unspentUtxos);
 
       lndWalletBalance = sinon.stub(require('../../../../services/lnd.js'), 'getWalletBalance')
         .resolves(walletBalance);
