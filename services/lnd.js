@@ -190,6 +190,11 @@ function getChannelBalance() {
     .then(({lightning}) => promiseify(lightning, lightning.ChannelBalance, {}, 'get channel balance'));
 }
 
+function getFeeReport() {
+  return initializeRPCClient()
+    .then(({lightning}) => promiseify(lightning, lightning.FeeReport, {}, 'get fee report'));
+}
+
 function getForwardingEvents(startTime, endTime, indexOffset) {
   const rpcPayload = {
     start_time: startTime,
@@ -292,7 +297,7 @@ function getOnChainTransactions() {
 
 async function listUnspent() {
   const rpcPayload = {
-    min_confs: 0,
+    min_confs: 1,
     max_confs: 10000000, // Use arbitrarily high maximum confirmation limit.
   };
 
@@ -365,6 +370,27 @@ function unlockWallet(password) {
     .then(({walletUnlocker}) => promiseify(walletUnlocker, walletUnlocker.UnlockWallet, rpcPayload, 'unlock wallet'));
 }
 
+function updateChannelPolicy(global, fundingTxid, outputIndex, baseFeeMsat, feeRate, timeLockDelta) {
+  const rpcPayload = {
+    base_fee_msat: baseFeeMsat,
+    fee_rate: feeRate,
+    time_lock_delta: timeLockDelta,
+  };
+
+  if (global) {
+    rpcPayload.global = global;
+  } else {
+    rpcPayload.chan_point = {
+      funding_txid_str: fundingTxid,
+      output_index: outputIndex,
+    };
+  }
+
+  return initializeRPCClient()
+    .then(({lightning}) => promiseify(lightning, lightning.UpdateChannelPolicy, rpcPayload,
+      'update channel policy coins'));
+}
+
 module.exports = {
   addInvoice,
   closeChannel,
@@ -373,6 +399,7 @@ module.exports = {
   estimateFee,
   getChannelBalance,
   getClosedChannels,
+  getFeeReport,
   getForwardingEvents,
   getInfo,
   getInvoices,
@@ -390,4 +417,5 @@ module.exports = {
   sendCoins,
   sendPaymentSync,
   unlockWallet,
+  updateChannelPolicy,
 };

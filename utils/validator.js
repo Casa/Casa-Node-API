@@ -38,6 +38,12 @@ function isBoolean(value) {
   }
 }
 
+function isDecimal(amount) {
+  if (!validator.isDecimal(amount)) {
+    throw new ValidationError('Must be decimal.');
+  }
+}
+
 function isDefined(object) {
   if (object === undefined) {
     throw new ValidationError('Must define variable.');
@@ -48,6 +54,7 @@ module.exports = {
   isAlphanumeric,
   isAlphanumericAndSpaces,
   isBoolean,
+  isDecimal,
   isPositiveInteger,
   isPositiveIntegerOrZero,
 };

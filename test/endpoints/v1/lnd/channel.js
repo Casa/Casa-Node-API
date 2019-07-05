@@ -143,10 +143,53 @@ describe('v1/lnd/channel endpoints', () => {
           }
           res.should.have.status(200);
           res.should.be.json;
-          res.body.should.have.property('code');
-          res.body.code.should.equal('OUTPUT_IS_DUST');
-          res.body.should.have.property('text');
-          res.body.text.should.equal('Transaction output is dust.');
+          done();
+        });
+    });
+  });
+
+  describe('/channel/policy GET', function() {
+    let lndGetFeeReport;
+
+    afterEach(() => {
+      lndGetFeeReport.restore();
+    });
+
+    it('should return all channel policies', done => {
+
+      lndGetFeeReport = sinon.stub(require('../../../../services/lnd.js'), 'getFeeReport')
+        .resolves(lndMocks.getFeeReport());
+
+      requester
+        .get('/v1/lnd/channel/policy')
+        .set('authorization', `JWT ${token}`)
+        .end((err, res) => {
+          if (err) {
+            done(err);
+          }
+          res.should.have.status(200);
+          res.should.be.json;
+          res.body.should.be.an('array');
+
+          let channelPolicy = res.body[0];
+          channelPolicy.should.have.property('channelPoint');
+          channelPolicy.channelPoint.should.equal('231e0634b9d283200c1f59f5f4be1ba04464130c788ab97ba6ec2f7270e50167:0');
+          channelPolicy.should.have.property('baseFeeMsat');
+          channelPolicy.baseFeeMsat.should.equal('1000');
+          channelPolicy.should.have.property('feePerMil');
+          channelPolicy.feePerMil.should.equal('1');
+          channelPolicy.should.have.property('feeRate');
+          channelPolicy.feeRate.should.equal(0.000001);
+
+          channelPolicy = res.body[1];
+          channelPolicy.should.have.property('channelPoint');
+          channelPolicy.channelPoint.should.equal('d93d83c28a719e1a8689948a87a7025497643757d8cd23746e7af4d2710da09d:1');
+          channelPolicy.should.have.property('baseFeeMsat');
+          channelPolicy.baseFeeMsat.should.equal('2000');
+          channelPolicy.should.have.property('feePerMil');
+          channelPolicy.feePerMil.should.equal('2');
+          channelPolicy.should.have.property('feeRate');
+          channelPolicy.feeRate.should.equal(0.000002);
 
           done();
         });

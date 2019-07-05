@@ -115,43 +115,72 @@ async function estimateFee(address, amt, confTarget, sweep) {
 
   if (sweep) {
 
-    const utxos = (await lndService.listUnspent()).utxos;
-    const balance = parseInt((await lndService.getWalletBalance()).totalBalance, 10);
+    const balance = parseInt((await lndService.getWalletBalance()).confirmedBalance, 10);
+    const amtToEstimate = balance;
 
-    utxos.sort(compareUtxo);
-
-    var amtToEstimate = balance + 1;
-
-    // We start to estimate a fee by forcing the estimate amount to use the maximum amount of utxos. If that fails, we
-    // subtract the next smallest utxo until we run out of utxos. If we run out of utxos, that means we are unable to
-    // create a transaction for the given confirmation target.
-    for (const utxo of utxos) {
-      amtToEstimate -= utxo.amountSat;
-
-      try {
-        if (confTarget === 0) {
-          return await estimateFeeGroup(address, amtToEstimate);
-        } else {
-          return await lndService.estimateFee(address, amtToEstimate, confTarget);
-        }
-      } catch (error) {
-        // no op
-      }
+    if (confTarget === 0) {
+      return await estimateFeeGroupSweep(address, amtToEstimate);
     }
 
-    return INSUFFICIENT_FUNDS_ERROR;
+    return await estimateFeeSweep(address, amtToEstimate, confTarget, 0, amtToEstimate);
   } else {
 
     try {
       if (confTarget === 0) {
         return await estimateFeeGroup(address, amt);
-      } else {
-        return await lndService.estimateFee(address, amt, confTarget);
       }
+
+      return await lndService.estimateFee(address, amt, confTarget);
     } catch (error) {
       return handleEstimateFeeError(error);
     }
   }
+}
+
+// Use binary search strategy to determine the largest amount that can be sent.
+async function estimateFeeSweep(address, fullAmtToEstimate, confTarget, l, r) {
+
+  const amtToEstimate = l + Math.floor((r - l) / 2); // eslint-disable-line no-magic-numbers
+
+  try {
+    const successfulEstimate = await lndService.estimateFee(address, amtToEstimate, confTarget);
+
+    // Return after we have completed our search.
+    if (l === amtToEstimate) {
+      successfulEstimate.sweepAmount = amtToEstimate;
+
+      return successfulEstimate;
+    }
+
+    return await estimateFeeSweep(address, fullAmtToEstimate, confTarget, amtToEstimate, r);
+
+  } catch (error) {
+
+    // Return after we have completed our search.
+    if (l === amtToEstimate) {
+      return handleEstimateFeeError(error);
+    }
+
+    return await estimateFeeSweep(address, fullAmtToEstimate, confTarget, l, amtToEstimate);
+  }
+}
+
+async function estimateFeeGroupSweep(address, amt) {
+  const calls = [estimateFeeSweep(address, amt, FAST_BLOCK_CONF_TARGET, 0, amt),
+    estimateFeeSweep(address, amt, NORMAL_BLOCK_CONF_TARGET, 0, amt),
+    estimateFeeSweep(address, amt, SLOW_BLOCK_CONF_TARGET, 0, amt),
+    estimateFeeSweep(address, amt, CHEAPEST_BLOCK_CONF_TARGET, 0, amt),
+  ];
+
+  const [fast, normal, slow, cheapest]
+    = await Promise.all(calls.map(p => p.catch(error => handleEstimateFeeError(error))));
+
+  return {
+    fast: fast, // eslint-disable-line object-shorthand
+    normal: normal, // eslint-disable-line object-shorthand
+    slow: slow, // eslint-disable-line object-shorthand
+    cheapest: cheapest, // eslint-disable-line object-shorthand
+  };
 }
 
 async function estimateFeeGroup(address, amt) {
@@ -180,17 +209,6 @@ function handleEstimateFeeError(error) {
   }
 
   return INVALID_ADDRESS;
-}
-
-function compareUtxo(a, b) {
-  if (parseInt(a.amountSat, 10) < parseInt(b.amountSat, 10)) {
-    return -1;
-  }
-  if (parseInt(a.amountSat, 10) > parseInt(b.amountSat, 10)) {
-    return 1;
-  }
-
-  return 0;
 }
 
 // Generates a new on chain segwit bitcoin address.
@@ -223,6 +241,11 @@ function getChannelCount() {
     .then(response => ({count: response.length}));
 }
 
+function getChannelPolicy() {
+  return lndService.getFeeReport()
+    .then(feeReport => feeReport.channelFees);
+}
+
 function getForwardingEvents(startTime, endTime, indexOffset) {
   return lndService.getForwardingEvents(startTime, endTime, indexOffset);
 }
@@ -252,10 +275,14 @@ async function getOnChainTransactions() {
   const closedChannels = await lndService.getClosedChannels();
   const pendingChannelRPC = await lndService.getPendingChannels();
 
-  const pendingChannelTransactions = [];
+  const pendingOpeningChannelTransactions = [];
+  for (const pendingChannel of pendingChannelRPC.pendingOpenChannels) {
+    const pendingTransaction = pendingChannel.channel.channelPoint.split(':').shift();
+    pendingOpeningChannelTransactions.push(pendingTransaction);
+  }
 
+  const pendingClosingChannelTransactions = [];
   for (const pendingGroup of [
-    pendingChannelRPC.pendingOpenChannels,
     pendingChannelRPC.pendingClosingChannels,
     pendingChannelRPC.pendingForceClosingChannels,
     pendingChannelRPC.waitingCloseChannels]) {
@@ -264,37 +291,44 @@ async function getOnChainTransactions() {
       continue;
     }
     for (const pendingChannel of pendingGroup) {
-      const pendingTransaction = pendingChannel.channel.channelPoint.split(':').shift();
-      pendingChannelTransactions.push(pendingTransaction);
+      pendingClosingChannelTransactions.push(pendingChannel.closingTxid);
     }
   }
 
-  const openingChannelTransactions = [];
+  const openChannelTransactions = [];
   for (const channel of openChannels) {
-    const openingTransaction = channel.channelPoint.split(':').shift();
-    openingChannelTransactions.push(openingTransaction);
+    const openTransaction = channel.channelPoint.split(':').shift();
+    openChannelTransactions.push(openTransaction);
   }
 
-  const closingChannelTransactions = [];
+  const closedChannelTransactions = [];
   for (const channel of closedChannels) {
-    const closingTransaction = channel.channelPoint.split(':').shift();
-    closingChannelTransactions.push(closingTransaction);
+    const closedTransaction = channel.closingTxHash.split(':').shift();
+    closedChannelTransactions.push(closedTransaction);
   }
 
   const reversedTransactions = [];
   for (const transaction of transactions) {
     const txHash = transaction.txHash;
 
-    if (openingChannelTransactions.includes(txHash)) {
+    if (openChannelTransactions.includes(txHash)) {
       transaction.type = 'CHANNEL_OPEN';
-    } else if (closingChannelTransactions.includes(txHash)) {
+    } else if (closedChannelTransactions.includes(txHash)) {
       transaction.type = 'CHANNEL_CLOSE';
-    } else if (pendingChannelTransactions.includes(txHash)) {
-      transaction.type = 'CHANNEL_PENDING';
+    } else if (pendingOpeningChannelTransactions.includes(txHash)) {
+      transaction.type = 'PENDING_OPEN';
+    } else if (pendingClosingChannelTransactions.includes(txHash)) {
+      transaction.type = 'PENDING_CLOSE';
     } else if (transaction.amount < 0) {
       transaction.type = 'ON_CHAIN_TRANSACTION_SENT';
-    } else if (transaction.amount > 0) {
+    } else if (transaction.amount > 0 && transaction.destAddresses.length > 0) {
       transaction.type = 'ON_CHAIN_TRANSACTION_RECEIVED';
+
+    // Positive amounts are either incoming transactions or a WaitingCloseChannel. There is no way to determine which
+    // until the transaction has at least one confirmation. Then a WaitingCloseChannel will become a pending Closing
+    // channel and will have an associated tx id.
+    } else if (transaction.amount > 0 && transaction.destAddresses.length === 0) {
+      transaction.type = 'PENDING_CLOSE';
     } else {
       transaction.type = 'UNKNOWN';
     }
@@ -763,6 +797,10 @@ async function getVersion() {
   return {version: version}; // eslint-disable-line object-shorthand
 }
 
+function updateChannelPolicy(global, fundingTxid, outputIndex, baseFeeMsat, feeRate, timeLockDelta) {
+  return lndService.updateChannelPolicy(global, fundingTxid, outputIndex, baseFeeMsat, feeRate, timeLockDelta);
+}
+
 module.exports = {
   addInvoice,
   cancelSendCoinsWhenAvailable,
@@ -773,6 +811,7 @@ module.exports = {
   generateAddress,
   generateSeed,
   getChannelBalance,
+  getChannelPolicy,
   getChannelCount,
   getInvoices,
   getChannels,
@@ -792,4 +831,5 @@ module.exports = {
   unlockWallet,
   getGeneralInfo,
   getVersion,
+  updateChannelPolicy,
 };

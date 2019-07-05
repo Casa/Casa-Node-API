@@ -168,56 +168,6 @@ describe('lightningLogic', function() {
 
   });
 
-  describe('getOnChainTransactions', function() {
-
-    it('should return on channel transactions', function(done) {
-
-      const originalChainTransactions = lndMocks.getOnChainTransactions();
-      const openChannels = lndMocks.getOpenChannels();
-      const pendingChannels = lndMocks.getPendingChannels();
-
-      const reversedChainTransactions = lndMocks.getReversedOnChainTransactions();
-
-      const lndServiceStub = {
-        'services/lnd.js': {
-          getOnChainTransactions: () => Promise.resolve(originalChainTransactions),
-          getOpenChannels: () => Promise.resolve(openChannels),
-          getClosedChannels: () => Promise.resolve([]),
-          getPendingChannels: () => Promise.resolve(pendingChannels)
-        }
-      };
-
-      const lightningLogic = proxyquire('logic/lightning.js', lndServiceStub);
-
-      lightningLogic.getOnChainTransactions()
-        .then(function(transactions) {
-          assert.deepEqual(transactions, reversedChainTransactions);
-
-          done();
-        });
-
-    });
-
-    it('should throw an exception', function(done) {
-
-      const lndServiceStub = {
-        'services/lnd.js': {
-          getOnChainTransactions: () => Promise.reject(new Error())
-        }
-      };
-
-      const lightningLogic = proxyquire('logic/lightning.js', lndServiceStub);
-
-      lightningLogic.getOnChainTransactions()
-        .catch(function(error) {
-          assert.isNotNull(error);
-
-          done();
-        });
-
-    });
-  });
-
   describe('getChannels', function() {
     it('should return a list of channels', function(done) {
 
