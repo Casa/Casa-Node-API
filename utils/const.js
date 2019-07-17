@@ -5,5 +5,5 @@ module.exports = {
   PENDING_SEND_COINS_FILE: '/channel-data/pendingSendCoins.json',
   REQUEST_CORRELATION_NAMESPACE_KEY: 'lnapi-request',
   REQUEST_CORRELATION_ID_KEY: 'reqId',
-  JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY || 'UNKNOWN'
+  JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY || 'UNKNOWN',
 };

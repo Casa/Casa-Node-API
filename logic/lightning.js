@@ -4,14 +4,16 @@
 
 /* eslint-disable id-length, max-lines, max-statements */
 
-const logger = require('utils/logger.js');
-var LndError = require('models/errors.js').LndError;
-
-const diskLogic = require('logic/disk');
-const bitcoindLogic = require('logic/bitcoind.js');
-const constants = require('utils/const.js');
+const LndError = require('models/errors.js').LndError;
+const NodeError = require('models/errors.js').NodeError;
 
 const lndService = require('services/lnd.js');
+const diskLogic = require('logic/disk');
+const bitcoindLogic = require('logic/bitcoind.js');
+
+const constants = require('utils/const.js');
+const convert = require('utils/convert.js');
+const logger = require('utils/logger.js');
 
 const SEND_COINS_WHEN_AVAILABLE_INTERVAL_IN_SECONDS = 30;
 const MILLI_SECONDS = 1000;
@@ -33,6 +35,11 @@ const SLOW_BLOCK_CONF_TARGET = 24;
 const CHEAPEST_BLOCK_CONF_TARGET = 144;
 
 const OPEN_CHANNEL_EXTRA_WEIGHT = 10;
+
+const FEE_RATE_TOO_LOW_ERROR = {
+  code: 'FEE_RATE_TOO_LOW',
+  text: 'Mempool reject low fee transaction. Increase fee rate.',
+};
 
 const INSUFFICIENT_FUNDS_ERROR = {
   code: 'INSUFFICIENT_FUNDS',
@@ -112,6 +119,7 @@ async function estimateChannelOpenFee(amt, confTarget) {
 
 // Estimate an on chain transaction fee.
 async function estimateFee(address, amt, confTarget, sweep) {
+  const mempoolInfo = (await bitcoindLogic.getMempoolInfo()).result;
 
   if (sweep) {
 
@@ -119,18 +127,18 @@ async function estimateFee(address, amt, confTarget, sweep) {
     const amtToEstimate = balance;
 
     if (confTarget === 0) {
-      return await estimateFeeGroupSweep(address, amtToEstimate);
+      return await estimateFeeGroupSweep(address, amtToEstimate, mempoolInfo.mempoolminfee);
     }
 
-    return await estimateFeeSweep(address, amtToEstimate, confTarget, 0, amtToEstimate);
+    return await estimateFeeSweep(address, amtToEstimate, mempoolInfo.mempoolminfee, confTarget, 0, amtToEstimate);
   } else {
 
     try {
       if (confTarget === 0) {
-        return await estimateFeeGroup(address, amt);
+        return await estimateFeeGroup(address, amt, mempoolInfo.mempoolminfee);
       }
 
-      return await lndService.estimateFee(address, amt, confTarget);
+      return await estimateFeeWrapper(address, amt, mempoolInfo.mempoolminfee, confTarget);
     } catch (error) {
       return handleEstimateFeeError(error);
     }
@@ -138,7 +146,7 @@ async function estimateFee(address, amt, confTarget, sweep) {
 }
 
 // Use binary search strategy to determine the largest amount that can be sent.
-async function estimateFeeSweep(address, fullAmtToEstimate, confTarget, l, r) {
+async function estimateFeeSweep(address, fullAmtToEstimate, mempoolMinFee, confTarget, l, r) {
 
   const amtToEstimate = l + Math.floor((r - l) / 2); // eslint-disable-line no-magic-numbers
 
@@ -149,10 +157,14 @@ async function estimateFeeSweep(address, fullAmtToEstimate, confTarget, l, r) {
     if (l === amtToEstimate) {
       successfulEstimate.sweepAmount = amtToEstimate;
 
+      if (successfulEstimate.feeSat < convert(mempoolMinFee, 'btc', 'sat', 'Number')) {
+        throw new NodeError('FEE_RATE_TOO_LOW');
+      }
+
       return successfulEstimate;
     }
 
-    return await estimateFeeSweep(address, fullAmtToEstimate, confTarget, amtToEstimate, r);
+    return await estimateFeeSweep(address, fullAmtToEstimate, mempoolMinFee, confTarget, amtToEstimate, r);
 
   } catch (error) {
 
@@ -161,15 +173,15 @@ async function estimateFeeSweep(address, fullAmtToEstimate, confTarget, l, r) {
       return handleEstimateFeeError(error);
     }
 
-    return await estimateFeeSweep(address, fullAmtToEstimate, confTarget, l, amtToEstimate);
+    return await estimateFeeSweep(address, fullAmtToEstimate, mempoolMinFee, confTarget, l, amtToEstimate);
   }
 }
 
-async function estimateFeeGroupSweep(address, amt) {
-  const calls = [estimateFeeSweep(address, amt, FAST_BLOCK_CONF_TARGET, 0, amt),
-    estimateFeeSweep(address, amt, NORMAL_BLOCK_CONF_TARGET, 0, amt),
-    estimateFeeSweep(address, amt, SLOW_BLOCK_CONF_TARGET, 0, amt),
-    estimateFeeSweep(address, amt, CHEAPEST_BLOCK_CONF_TARGET, 0, amt),
+async function estimateFeeGroupSweep(address, amt, mempoolMinFee) {
+  const calls = [estimateFeeSweep(address, amt, mempoolMinFee, FAST_BLOCK_CONF_TARGET, 0, amt),
+    estimateFeeSweep(address, amt, mempoolMinFee, NORMAL_BLOCK_CONF_TARGET, 0, amt),
+    estimateFeeSweep(address, amt, mempoolMinFee, SLOW_BLOCK_CONF_TARGET, 0, amt),
+    estimateFeeSweep(address, amt, mempoolMinFee, CHEAPEST_BLOCK_CONF_TARGET, 0, amt),
   ];
 
   const [fast, normal, slow, cheapest]
@@ -183,11 +195,21 @@ async function estimateFeeGroupSweep(address, amt) {
   };
 }
 
-async function estimateFeeGroup(address, amt) {
-  const calls = [lndService.estimateFee(address, amt, FAST_BLOCK_CONF_TARGET),
-    lndService.estimateFee(address, amt, NORMAL_BLOCK_CONF_TARGET),
-    lndService.estimateFee(address, amt, SLOW_BLOCK_CONF_TARGET),
-    lndService.estimateFee(address, amt, CHEAPEST_BLOCK_CONF_TARGET),
+async function estimateFeeWrapper(address, amt, mempoolMinFee, confTarget) {
+  const estimate = await lndService.estimateFee(address, amt, confTarget);
+
+  if (estimate.feeSat < convert(mempoolMinFee, 'btc', 'sat', 'Number')) {
+    throw new NodeError('FEE_RATE_TOO_LOW');
+  }
+
+  return estimate;
+}
+
+async function estimateFeeGroup(address, amt, mempoolMinFee) {
+  const calls = [estimateFeeWrapper(address, amt, mempoolMinFee, FAST_BLOCK_CONF_TARGET),
+    estimateFeeWrapper(address, amt, mempoolMinFee, NORMAL_BLOCK_CONF_TARGET),
+    estimateFeeWrapper(address, amt, mempoolMinFee, SLOW_BLOCK_CONF_TARGET),
+    estimateFeeWrapper(address, amt, mempoolMinFee, CHEAPEST_BLOCK_CONF_TARGET),
   ];
 
   const [fast, normal, slow, cheapest]
@@ -202,7 +224,10 @@ async function estimateFeeGroup(address, amt) {
 }
 
 function handleEstimateFeeError(error) {
-  if (error.error.details === 'transaction output is dust') {
+
+  if (error.message === 'FEE_RATE_TOO_LOW') {
+    return FEE_RATE_TOO_LOW_ERROR;
+  } else if (error.error.details === 'transaction output is dust') {
     return OUTPUT_IS_DUST_ERROR;
   } else if (error.error.details === 'insufficient funds available to construct transaction') {
     return INSUFFICIENT_FUNDS_ERROR;
@@ -227,7 +252,7 @@ async function generateSeed() {
     return {seed: response.cipherSeedMnemonic};
   }
 
-  throw new LndError('Lnd is not operational, therefor a seed cannot be created.');
+  throw new LndError('Lnd is not operational, therefore a seed cannot be created.');
 }
 
 // Returns the total funds in channels and the total pending funds in channels.
@@ -305,6 +330,9 @@ async function getOnChainTransactions() {
   for (const channel of closedChannels) {
     const closedTransaction = channel.closingTxHash.split(':').shift();
     closedChannelTransactions.push(closedTransaction);
+
+    const openTransaction = channel.channelPoint.split(':').shift();
+    openChannelTransactions.push(openTransaction);
   }
 
   const reversedTransactions = [];
@@ -377,6 +405,15 @@ const getChannels = async() => {
       channel.initiator = false;
     }
 
+    // Include commitFee in balance. This helps us avoid the leaky sats issue by making balances more consistent.
+    if (channel.initiator) {
+      channel.channel.localBalance
+        = String(parseInt(channel.channel.localBalance, 10) + parseInt(channel.commitFee, 10));
+    } else {
+      channel.channel.remoteBalance
+        = String(parseInt(channel.channel.remoteBalance, 10) + parseInt(channel.commitFee, 10));
+    }
+
     allChannels.push(channel);
   }
 
@@ -394,6 +431,16 @@ const getChannels = async() => {
 
   for (const channel of openChannels) {
     channel.type = 'OPEN';
+
+    // Include commitFee in balance. This helps us avoid the leaky sats issue by making balances more consistent.
+    if (channel.initiator) {
+      channel.localBalance
+        = String(parseInt(channel.localBalance, 10) + parseInt(channel.commitFee, 10));
+    } else {
+      channel.remoteBalance
+        = String(parseInt(channel.remoteBalance, 10) + parseInt(channel.commitFee, 10));
+    }
+
     allChannels.push(channel);
   }
 
@@ -574,7 +621,7 @@ async function initializeWallet(password, seed) {
     return;
   }
 
-  throw new LndError('Lnd is not operational, therefor a wallet cannot be created.');
+  throw new LndError('Lnd is not operational, therefore a wallet cannot be created.');
 }
 
 // Opens a channel to the node with the given public key with the given amount.
@@ -784,7 +831,7 @@ async function unlockWallet(password) {
     }
   }
 
-  throw new LndError('Lnd is not operational, therefor the wallet cannot be unlocked.');
+  throw new LndError('Lnd is not operational, therefore the wallet cannot be unlocked.');
 }
 
 async function getVersion() {

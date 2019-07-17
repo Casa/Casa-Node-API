@@ -44,6 +44,10 @@ function getBlockCount() {
   return promiseify(rpcClient, rpcClient.getBlockCount, 'block count');
 }
 
+function getMempoolInfo() {
+  return promiseify(rpcClient, rpcClient.getMemPoolInfo, 'get mempool info');
+}
+
 function getNetworkInfo() {
   return promiseify(rpcClient, rpcClient.getNetworkInfo, 'network info');
 }
@@ -62,8 +66,9 @@ function help() {
 
 module.exports = {
   getBlockChainInfo,
-  getPeerInfo,
   getBlockCount,
+  getPeerInfo,
+  getMempoolInfo,
   getNetworkInfo,
-  help
+  help,
 };

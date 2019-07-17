@@ -2,6 +2,8 @@
 /* globals requester, reset */
 const sinon = require('sinon');
 const LndError = require('../../../../models/errors.js').LndError;
+
+const bitcoindMocks = require('../../../mocks/bitcoind.js');
 const lndMocks = require('../../../mocks/lnd.js');
 
 describe('v1/lnd/channel endpoints', () => {
@@ -14,12 +16,16 @@ describe('v1/lnd/channel endpoints', () => {
   });
 
   describe('/estimateFee GET', function() {
+
+    let bitcoindMempoolInfo;
     let lndEstimateFee;
     let lndGenerateAddress;
     let lndUnspentUtxos;
     let lndWalletBalance;
 
     afterEach(() => {
+      bitcoindMempoolInfo.restore();
+
       lndEstimateFee.restore();
       lndGenerateAddress.restore();
 
@@ -33,6 +39,11 @@ describe('v1/lnd/channel endpoints', () => {
     });
 
     it('should return a fee estimate', done => {
+
+      const mempoolInfo = bitcoindMocks.getMempoolInfo();
+
+      bitcoindMempoolInfo = sinon.stub(require('../../../../services/bitcoind.js'), 'getMempoolInfo')
+        .resolves(mempoolInfo);
 
       const estimateFee = lndMocks.getEstimateFee();
       const generateAddress = lndMocks.generateAddress();
@@ -62,7 +73,12 @@ describe('v1/lnd/channel endpoints', () => {
         });
     });
 
-    it('should return a fee estimate, group', done => {
+    it('should return a fee estimate, group2', done => {
+
+      const mempoolInfo = bitcoindMocks.getMempoolInfo();
+
+      bitcoindMempoolInfo = sinon.stub(require('../../../../services/bitcoind.js'), 'getMempoolInfo')
+        .resolves(mempoolInfo);
 
       const estimateFee = lndMocks.getEstimateFee();
       const generateAddress = lndMocks.generateAddress();
@@ -100,6 +116,11 @@ describe('v1/lnd/channel endpoints', () => {
 
     it('should return insufficient funds', done => {
 
+      const mempoolInfo = bitcoindMocks.getMempoolInfo();
+
+      bitcoindMempoolInfo = sinon.stub(require('../../../../services/bitcoind.js'), 'getMempoolInfo')
+        .resolves(mempoolInfo);
+
       const generateAddress = lndMocks.generateAddress();
 
       lndEstimateFee = sinon.stub(require('../../../../services/lnd.js'), 'estimateFee')
@@ -126,6 +147,11 @@ describe('v1/lnd/channel endpoints', () => {
     });
 
     it('should return output is dust', done => {
+
+      const mempoolInfo = bitcoindMocks.getMempoolInfo();
+
+      bitcoindMempoolInfo = sinon.stub(require('../../../../services/bitcoind.js'), 'getMempoolInfo')
+        .resolves(mempoolInfo);
 
       const generateAddress = lndMocks.generateAddress();
 
