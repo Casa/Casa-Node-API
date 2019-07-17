@@ -13,7 +13,7 @@ router.post('/addInvoice', safeHandler((req, res, next) => {
 
   try {
     validator.isPositiveIntegerOrZero(amt);
-    validator.isAlphanumericAndSpaces(memo);
+    validator.isValidMemoLength(memo);
   } catch (error) {
     return next(error);
   }

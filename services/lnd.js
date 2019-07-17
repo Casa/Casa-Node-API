@@ -178,7 +178,7 @@ async function generateAddress() {
 function generateSeed() {
   return initializeRPCClient().then(({walletUnlocker, state}) => {
     if (state === true) {
-      throw new LndError('Macaroon exists, therefor wallet already exists');
+      throw new LndError('Macaroon exists, therefore wallet already exists');
     }
 
     return promiseify(walletUnlocker, walletUnlocker.GenSeed, {}, 'generate seed');
@@ -269,7 +269,7 @@ function initWallet(options) {
 
   return initializeRPCClient().then(({walletUnlocker, state}) => {
     if (state === true) {
-      throw new LndError('Macaroon exists, therefor wallet already exists');
+      throw new LndError('Macaroon exists, therefore wallet already exists');
     }
 
     return promiseify(walletUnlocker, walletUnlocker.InitWallet, rpcPayload, 'initialize wallet')

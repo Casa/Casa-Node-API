@@ -60,6 +60,10 @@ async function getMaxSyncHeader() {
   return maxPeer.syncedHeaders;
 }
 
+async function getMempoolInfo() {
+  return await bitcoindService.getMempoolInfo();
+}
+
 async function getLocalSyncInfo() {
   const info = await bitcoindService.getBlockChainInfo();
 
@@ -101,6 +105,7 @@ async function getVersion() {
 module.exports = {
   getBlockCount,
   getConnectionsCount,
+  getMempoolInfo,
   getStatus,
   getSyncStatus,
   getVersion

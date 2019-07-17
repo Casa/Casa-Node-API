@@ -1,4 +1,16 @@
 /* eslint-disable indent, id-length, camelcase */
+function getMempoolInfo() {
+  return {
+    result: {
+      size: 4524,
+      bytes: 2071293,
+      usage: 6141256,
+      maxmempool: 20000000,
+      mempoolminfee: 0.00000001,
+      minrelaytxfee: 0.00000001,
+    }
+  };
+}
 
 function getNetworkInfoWithTor() {
   return {
@@ -314,8 +326,9 @@ function getPeerInfoEmpty() {
 }
 
 module.exports = {
+  getMempoolInfo,
   getNetworkInfoWithTor,
   getNetworkInfoWithoutTor,
   getPeerInfo,
-  getPeerInfoEmpty
+  getPeerInfoEmpty,
 };

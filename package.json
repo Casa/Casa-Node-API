@@ -1,6 +1,6 @@
 {
   "name": "lnapi",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Application endpoints for Casa Lightning Node",
   "author": "Casa, INC",
   "scripts": {
@@ -11,6 +11,7 @@
     "postcoverage": "codecov"
   },
   "dependencies": {
+    "big.js": "^5.2.2",
     "bitcoind-rpc": "^0.7.2",
     "body-parser": "^1.18.2",
     "camelize-keys": "^1.0.0",

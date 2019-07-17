@@ -2,6 +2,10 @@ const validator = require('validator');
 
 const ValidationError = require('models/errors.js').ValidationError;
 
+// Max length is listed here,
+// https://github.com/lightningnetwork/lnd/blob/fd1f6a7bc46b1e50ff3879b8bd3876d347dbb73d/channeldb/invoices.go#L84
+const MAX_MEMO_LENGTH = 1024;
+
 function isAlphanumeric(string) {
 
   isDefined(string);
@@ -32,6 +36,12 @@ function isPositiveIntegerOrZero(amount) {
   }
 }
 
+function isValidMemoLength(string) {
+  if (Buffer.byteLength(string, 'utf8') > MAX_MEMO_LENGTH) {
+    throw new ValidationError('Must be less than 1024 bytes.');
+  }
+}
+
 function isBoolean(value) {
   if (value !== true && value !== false) {
     throw new ValidationError('Must be true or false.');
@@ -57,4 +67,5 @@ module.exports = {
   isDecimal,
   isPositiveInteger,
   isPositiveIntegerOrZero,
+  isValidMemoLength,
 };
