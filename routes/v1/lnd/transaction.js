@@ -54,29 +54,4 @@ router.get('/estimateFee', auth.jwt, safeHandler(async(req, res, next) => {
     .then(response => res.json(response));
 }));
 
-router.post('/when-available', auth.jwt, safeHandler((req, res, next) => {
-
-  const addr = req.body.addr;
-  const amt = req.body.amt;
-  const satPerByte = req.body.satPerByte;
-
-  try {
-    // TODO: addr
-    validator.isPositiveInteger(amt);
-    if (satPerByte) {
-      validator.isPositiveInteger(satPerByte);
-    }
-  } catch (error) {
-    return next(error);
-  }
-
-  return lightningLogic.sendCoinsWhenAvailable(addr, amt, satPerByte)
-    .then(res.json({}));
-}));
-
-router.delete('/when-available', auth.jwt, safeHandler((req, res) =>
-  lightningLogic.cancelSendCoinsWhenAvailable()
-    .then(res.json({}))
-));
-
 module.exports = router;
