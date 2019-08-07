@@ -77,22 +77,25 @@ async function promiseify(rpcObj, rpcFn, payload, description) {
 }
 
 // an amount, an options memo, and can only be paid to node that created it.
-function addInvoice(amount, memo) {
+async function addInvoice(amount, memo) {
   const rpcPayload = {
     value: amount,
     memo: memo, // eslint-disable-line object-shorthand
     expiry: 3600 // Should we make this ENV specific for ease of testing?
   };
 
-  return initializeRPCClient()
-    .then(({lightning}) => promiseify(lightning, lightning.addInvoice, rpcPayload, 'create new invoice'))
-    .then(grpcResponse => {
-      if (grpcResponse && grpcResponse.paymentRequest) {
-        return grpcResponse.paymentRequest;
-      } else {
-        throw new LndError('Unable to parse invoice from lnd');
-      }
-    });
+  const conn = await initializeRPCClient();
+
+  const grpcResponse = await promiseify(conn.lightning, conn.lightning.addInvoice, rpcPayload, 'create new invoice');
+
+  if (grpcResponse && grpcResponse.paymentRequest) {
+    return {
+      rHash: grpcResponse.rHash,
+      paymentRequest: grpcResponse.paymentRequest,
+    };
+  } else {
+    throw new LndError('Unable to parse invoice from lnd');
+  }
 }
 
 function closeChannel(fundingTxId, index, force) {

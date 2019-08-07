@@ -13,10 +13,7 @@ const bitcoindLogic = require('logic/bitcoind.js');
 
 const constants = require('utils/const.js');
 const convert = require('utils/convert.js');
-const logger = require('utils/logger.js');
 
-const SEND_COINS_WHEN_AVAILABLE_INTERVAL_IN_SECONDS = 30;
-const MILLI_SECONDS = 1000;
 const UNIMPLEMENTED_CODE = 12;
 
 const PENDING_OPEN_CHANNELS = 'pendingOpenChannels';
@@ -56,9 +53,22 @@ const OUTPUT_IS_DUST_ERROR = {
   text: 'Transaction output is dust.'
 };
 
+// Converts a byte object into a hex string.
+function toHexString(byteObject) {
+  const bytes = Object.values(byteObject);
+
+  return bytes.map(function(byte) {
+
+    return ('00' + (byte & 0xFF).toString(16)).slice(-2); // eslint-disable-line no-magic-numbers
+  }).join('');
+}
+
 // Creates a new invoice; more commonly known as a payment request.
-function addInvoice(amt, memo) {
-  return lndService.addInvoice(amt, memo);
+async function addInvoice(amt, memo) {
+  const invoice = await lndService.addInvoice(amt, memo);
+  invoice.rHashStr = toHexString(invoice.rHash);
+
+  return invoice;
 }
 
 // Creates a new managed channel.
@@ -73,11 +83,6 @@ async function addManagedChannel(channelPoint, name, purpose) {
   };
 
   await setManagedChannels(managedChannels);
-}
-
-// Cancels any existing send coins loops.
-function cancelSendCoinsWhenAvailable() {
-  return setPendingCoins(false, {});
 }
 
 // Closes the channel that corresponds to the given channelPoint. Force close is optional.
@@ -705,31 +710,6 @@ function setManagedChannels(managedChannelsObject) {
   return diskLogic.writeManagedChannelsFile(managedChannelsObject);
 }
 
-async function attemptSendCoins() {
-  const pendingSendCoins = await getPendingSendCoins();
-  if (!pendingSendCoins.active) {
-    return;
-  }
-
-  try {
-    await lndService
-      .sendCoins(pendingSendCoins.data.addr, pendingSendCoins.data.amt, pendingSendCoins.data.satPerByte);
-    await setPendingCoins(false, {});
-  } catch (error) {
-    // TODO this may need more attention - will try indefinitely
-    logger.error('Unable to send funds', 'transaction', error);
-    setTimeout(attemptSendCoins, SEND_COINS_WHEN_AVAILABLE_INTERVAL_IN_SECONDS * MILLI_SECONDS);
-  }
-}
-
-// Sets the current state of pending coins and begins the send coins loop.
-function setPendingCoins(active, data) {
-  return diskLogic.writePendingSendCoinsFile({active, data})
-    .then(() => {
-      attemptSendCoins(); // Don't chain/wait this promise, it's designed to run and loop in the background
-    });
-}
-
 // Returns if lnd is operation and if the wallet is unlocked.
 async function getStatus() {
   const bitcoindStatus = await bitcoindLogic.getStatus();
@@ -780,28 +760,6 @@ async function getStatus() {
   }
 }
 
-//  Returns pending send coins object.
-function getPendingSendCoins() {
-  return diskLogic.readPendingSendCoinsFile();
-}
-
-// Create a loop that tries to send coins to a specified address every time interval. This loop will remain until
-// send coins has completed successfully or when canceled.
-async function sendCoinsWhenAvailable(addr, amt, satPerByte) {
-  const pendingSendCoins = await getPendingSendCoins();
-
-  if (pendingSendCoins.active) {
-    throw new LndError(
-      'There is already a withdraw in progress. Please cancel it or wait for it to complete.',
-      'WITHDRAW_ALREADY_IN_PROGRESS');
-  }
-  await setPendingCoins(true, {
-    addr: addr, // eslint-disable-line object-shorthand
-    amt: amt, // eslint-disable-line object-shorthand
-    satPerByte: satPerByte // eslint-disable-line object-shorthand
-  });
-}
-
 // Unlock and existing wallet.
 async function unlockWallet(password) {
   const lndStatus = await getStatus();
@@ -850,7 +808,6 @@ function updateChannelPolicy(global, fundingTxid, outputIndex, baseFeeMsat, feeR
 
 module.exports = {
   addInvoice,
-  cancelSendCoinsWhenAvailable,
   closeChannel,
   decodePaymentRequest,
   estimateChannelOpenFee,
@@ -874,7 +831,6 @@ module.exports = {
   openChannel,
   payInvoice,
   sendCoins,
-  sendCoinsWhenAvailable,
   unlockWallet,
   getGeneralInfo,
   getVersion,
