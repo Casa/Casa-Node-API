@@ -85,6 +85,11 @@ async function addManagedChannel(channelPoint, name, purpose) {
   await setManagedChannels(managedChannels);
 }
 
+// Change your lnd password. Wallet must exist and be unlocked.
+async function changePassword(currentPassword, newPassword) {
+  return await lndService.changePassword(currentPassword, newPassword);
+}
+
 // Closes the channel that corresponds to the given channelPoint. Force close is optional.
 async function closeChannel(txHash, index, force) {
   return await lndService.closeChannel(txHash, index, force);
@@ -808,6 +813,7 @@ function updateChannelPolicy(global, fundingTxid, outputIndex, baseFeeMsat, feeR
 
 module.exports = {
   addInvoice,
+  changePassword,
   closeChannel,
   decodePaymentRequest,
   estimateChannelOpenFee,

@@ -98,6 +98,22 @@ async function addInvoice(amount, memo) {
   }
 }
 
+// Change your lnd password. Wallet must exist and be unlocked.
+async function changePassword(currentPassword, newPassword) {
+
+  const currentPasswordBuff = Buffer.from(currentPassword, 'utf8');
+  const newPasswordBuff = Buffer.from(newPassword, 'utf8');
+
+  const rpcPayload = {
+    current_password: currentPasswordBuff,
+    new_password: newPasswordBuff,
+  };
+
+  const conn = await initializeRPCClient();
+
+  return await promiseify(conn.walletUnlocker, conn.walletUnlocker.changePassword, rpcPayload, 'change password');
+}
+
 function closeChannel(fundingTxId, index, force) {
   const rpcPayload = {
     channel_point: {
@@ -396,6 +412,7 @@ function updateChannelPolicy(global, fundingTxid, outputIndex, baseFeeMsat, feeR
 
 module.exports = {
   addInvoice,
+  changePassword,
   closeChannel,
   connectToPeer,
   decodePaymentRequest,
