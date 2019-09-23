@@ -10,7 +10,7 @@ function handleError(error, req, res, next) {
 
   if (error instanceof LndError) {
     if (error.error && error.error.code === 12) {
-      statusCode = 401;
+      statusCode = 403;
       message = 'Must unlock wallet';
 
       // add additional details if available
