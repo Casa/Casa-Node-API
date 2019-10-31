@@ -1,6 +1,6 @@
 {
   "name": "lnapi",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "description": "Application endpoints for Casa Lightning Node",
   "author": "Casa, INC",
   "scripts": {
