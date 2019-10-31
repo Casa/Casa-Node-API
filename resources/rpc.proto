@@ -10,19 +10,19 @@ option go_package = "github.com/lightningnetwork/lnd/lnrpc";
  * Comments in this file will be directly parsed into the API
  * Documentation as descriptions of the associated method, message, or field.
  * These descriptions should go right above the definition of the object, and
- * can be in either block or /// comment format. 
- * 
+ * can be in either block or /// comment format.
+ *
  * One edge case exists where a // comment followed by a /// comment in the
  * next line will cause the description not to show up in the documentation. In
  * that instance, simply separate the two comments with a blank line.
- * 
+ *
  * An RPC method can be matched to an lncli command by placing a line in the
  * beginning of the description in exactly the following format:
  * lncli: `methodname`
- * 
+ *
  * Failure to specify the exact name of the command will cause documentation
  * generation to fail.
- * 
+ *
  * More information on how exactly the gRPC documentation is generated from
  * this proto file can be found here:
  * https://github.com/lightninglabs/lightning-api
@@ -46,7 +46,7 @@ service WalletUnlocker {
         };
     }
 
-    /** 
+    /**
     InitWallet is used when lnd is starting up for the first time to fully
     initialize the daemon and its internal wallet. At the very least a wallet
     password must be provided. This will be used to encrypt sensitive material
@@ -802,7 +802,7 @@ message Transaction {
     /// The height of the block this transaction was included in
     int32 block_height = 5 [ json_name = "block_height" ];
 
-    /// Timestamp of this transaction 
+    /// Timestamp of this transaction
     int64 time_stamp = 6 [ json_name = "time_stamp" ];
 
     /// Fees paid for this transaction
@@ -874,7 +874,7 @@ message SendRequest {
     */
     uint64 outgoing_chan_id = 9;
 
-    /** 
+    /**
     An optional maximum total time lock for the route. If zero, there is no
     maximum enforced.
     */
@@ -965,7 +965,7 @@ message SendManyResponse {
 }
 
 message SendCoinsRequest {
-    /// The address to send coins to 
+    /// The address to send coins to
     string addr = 1;
 
     /// The amount in satoshis to send
@@ -982,7 +982,7 @@ message SendCoinsRequest {
     send all the coins under control of the internal wallet to the specified
     address.
     */
-    bool send_all = 6; 
+    bool send_all = 6;
 }
 message SendCoinsResponse {
     /// The transaction ID of the transaction
@@ -1001,7 +1001,7 @@ message ListUnspentResponse {
     repeated Utxo utxos = 1 [json_name = "utxos"];
 }
 
-/** 
+/**
 `AddressType` has to be one of:
 - `p2wkh`: Pay to witness key hash (`WITNESS_PUBKEY_HASH` = 0)
 - `np2wkh`: Pay to nested witness key hash (`NESTED_PUBKEY_HASH` = 1)
@@ -1179,10 +1179,10 @@ message ListChannelsResponse {
 }
 
 message ChannelCloseSummary {
-    /// The outpoint (txid:index) of the funding transaction. 
+    /// The outpoint (txid:index) of the funding transaction.
     string channel_point = 1 [json_name = "channel_point"];
 
-    ///  The unique channel ID for the channel. 
+    ///  The unique channel ID for the channel.
     uint64 chan_id = 2 [json_name = "chan_id"];
 
     /// The hash of the genesis block that this channel resides within.
@@ -1228,7 +1228,7 @@ message ClosedChannelsRequest {
     bool abandoned = 6;
 }
 
-message ClosedChannelsResponse { 
+message ClosedChannelsResponse {
     repeated ChannelCloseSummary channels = 1 [json_name = "channels"];
 }
 
@@ -1313,9 +1313,9 @@ message GetInfoResponse {
     /// Whether the wallet's view is synced to the main chain
     bool synced_to_chain = 9 [json_name = "synced_to_chain"];
 
-    /** 
-    Whether the current node is connected to testnet. This field is 
-    deprecated and the network field should be used instead 
+    /**
+    Whether the current node is connected to testnet. This field is
+    deprecated and the network field should be used instead
     **/
     bool testnet = 10 [json_name = "testnet", deprecated = true];
 
@@ -1471,7 +1471,6 @@ message PendingChannelsResponse {
 
         int64 local_balance = 4 [ json_name = "local_balance" ];
         int64 remote_balance = 5 [ json_name = "remote_balance" ];
-
 
         /// The minimum satoshis this node is required to reserve in its balance.
         int64 local_chan_reserve_sat = 6 [json_name = "local_chan_reserve_sat"];
@@ -1730,12 +1729,12 @@ message Route {
     Contains details concerning the specific forwarding details at each hop.
     */
     repeated Hop hops = 4 [json_name = "hops"];
-    
+
     /**
     The total fees in millisatoshis.
     */
     int64 total_fees_msat = 5 [json_name = "total_fees_msat"];
-    
+
     /**
     The total amount in millisatoshis.
     */
@@ -1743,7 +1742,7 @@ message Route {
 }
 
 message NodeInfoRequest {
-    /// The 33-byte hex-encoded compressed public of the target node 
+    /// The 33-byte hex-encoded compressed public of the target node
     string pub_key = 1;
 
     /// If true, will include all known channels associated with the node.
