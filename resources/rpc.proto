@@ -10,19 +10,19 @@ option go_package = "github.com/lightningnetwork/lnd/lnrpc";
  * Comments in this file will be directly parsed into the API
  * Documentation as descriptions of the associated method, message, or field.
  * These descriptions should go right above the definition of the object, and
- * can be in either block or /// comment format.
- *
+ * can be in either block or /// comment format. 
+ * 
  * One edge case exists where a // comment followed by a /// comment in the
  * next line will cause the description not to show up in the documentation. In
  * that instance, simply separate the two comments with a blank line.
- *
+ * 
  * An RPC method can be matched to an lncli command by placing a line in the
  * beginning of the description in exactly the following format:
  * lncli: `methodname`
- *
+ * 
  * Failure to specify the exact name of the command will cause documentation
  * generation to fail.
- *
+ * 
  * More information on how exactly the gRPC documentation is generated from
  * this proto file can be found here:
  * https://github.com/lightninglabs/lightning-api
@@ -36,6 +36,7 @@ service WalletUnlocker {
     instance. This method allows a caller to generate a new aezeed cipher seed
     given an optional passphrase. If provided, the passphrase will be necessary
     to decrypt the cipherseed to expose the internal wallet seed.
+
     Once the cipherseed is obtained and verified by the user, the InitWallet
     method should be used to commit the newly generated seed, and create the
     wallet.
@@ -46,14 +47,16 @@ service WalletUnlocker {
         };
     }
 
-    /**
+    /** 
     InitWallet is used when lnd is starting up for the first time to fully
     initialize the daemon and its internal wallet. At the very least a wallet
     password must be provided. This will be used to encrypt sensitive material
     on disk.
+
     In the case of a recovery scenario, the user can also specify their aezeed
     mnemonic and passphrase. If set, then the daemon will use this prior state
     to initialize its internal wallet.
+
     Alternatively, this can be used along with the GenSeed RPC to obtain a
     seed, then present it to the user. Once it has been verified by the user,
     the seed can be fed into this RPC in order to commit the new wallet.
@@ -386,7 +389,7 @@ service Lightning {
         };
     }
 
-    /** lncli: `subscribechannelevents`
+    /**
     SubscribeChannelEvents creates a uni-directional stream from the server to
     the client in which any updates relevant to the state of the channels are
     sent over. Events include new active channels, inactive channels, and closed
@@ -426,6 +429,15 @@ service Lightning {
     lax block confirmation target is used.
     */
     rpc OpenChannel (OpenChannelRequest) returns (stream OpenStatusUpdate);
+
+    /**
+    ChannelAcceptor dispatches a bi-directional streaming RPC in which
+    OpenChannel requests are sent to the client and the client responds with
+    a boolean that tells LND whether or not to accept the channel. This allows
+    node operators to specify their own criteria for accepting inbound channels
+    through a single persistent connection.
+    */
+    rpc ChannelAcceptor (stream ChannelAcceptResponse) returns (stream ChannelAcceptRequest);
 
     /** lncli: `closechannel`
     CloseChannel attempts to close an active channel identified by its channel
@@ -688,6 +700,7 @@ service Lightning {
     all HTLCs forwarded within the target time range, and integer offset
     within that time range. If no time-range is specified, then the first chunk
     of the past 24 hrs of forwarding history are returned.
+
     A list of forwarding events are returned. The size of each forwarding event
     is 40 bytes, and the max message size able to be returned in gRPC is 4 MiB.
     As a result each message can only contain 50k entries.  Each response has
@@ -802,7 +815,7 @@ message Transaction {
     /// The height of the block this transaction was included in
     int32 block_height = 5 [ json_name = "block_height" ];
 
-    /// Timestamp of this transaction
+    /// Timestamp of this transaction 
     int64 time_stamp = 6 [ json_name = "time_stamp" ];
 
     /// Fees paid for this transaction
@@ -874,11 +887,19 @@ message SendRequest {
     */
     uint64 outgoing_chan_id = 9;
 
-    /**
-    An optional maximum total time lock for the route. If zero, there is no
-    maximum enforced.
+    /** 
+    An optional maximum total time lock for the route. This should not exceed
+    lnd's `--max-cltv-expiry` setting. If zero, then the value of
+    `--max-cltv-expiry` is enforced.
     */
     uint32 cltv_limit = 10;
+
+    /** 
+    An optional field that can be used to pass an arbitrary set of TLV records
+    to a peer which understands the new records. This can be used to pass
+    application specific data during the payment attempt.
+    */
+    map<uint64, bytes> dest_tlv = 11;
 }
 
 message SendResponse {
@@ -899,6 +920,58 @@ message SendToRouteRequest {
 
     /// Route that should be used to attempt to complete the payment.
     Route route = 4;
+}
+
+message ChannelAcceptRequest {
+    /// The pubkey of the node that wishes to open an inbound channel.
+    bytes node_pubkey = 1;
+
+    /// The hash of the genesis block that the proposed channel resides in.
+    bytes chain_hash = 2;
+
+    /// The pending channel id.
+    bytes pending_chan_id = 3;
+
+    /// The funding amount in satoshis that initiator wishes to use in the channel.
+    uint64 funding_amt = 4;
+
+    /// The push amount of the proposed channel in millisatoshis.
+    uint64 push_amt = 5;
+
+    /// The dust limit of the initiator's commitment tx.
+    uint64 dust_limit = 6;
+
+    /// The maximum amount of coins in millisatoshis that can be pending in this channel.
+    uint64 max_value_in_flight = 7;
+
+    /// The minimum amount of satoshis the initiator requires us to have at all times.
+    uint64 channel_reserve = 8;
+
+    /// The smallest HTLC in millisatoshis that the initiator will accept.
+    uint64 min_htlc = 9;
+
+    /// The initial fee rate that the initiator suggests for both commitment transactions.
+    uint64 fee_per_kw = 10;
+
+    /**
+    The number of blocks to use for the relative time lock in the pay-to-self output
+    of both commitment transactions.
+    */
+    uint32 csv_delay = 11;
+
+    /// The total number of incoming HTLC's that the initiator will accept.
+    uint32 max_accepted_htlcs = 12;
+
+    /// A bit-field which the initiator uses to specify proposed channel behavior.
+    uint32 channel_flags = 13;
+}
+
+message ChannelAcceptResponse {
+    /// Whether or not the client accepts the channel.
+    bool accept = 1;
+
+    /// The pending channel id to which this response applies.
+    bytes pending_chan_id = 2;
 }
 
 message ChannelPoint {
@@ -965,7 +1038,7 @@ message SendManyResponse {
 }
 
 message SendCoinsRequest {
-    /// The address to send coins to
+    /// The address to send coins to 
     string addr = 1;
 
     /// The amount in satoshis to send
@@ -982,7 +1055,7 @@ message SendCoinsRequest {
     send all the coins under control of the internal wallet to the specified
     address.
     */
-    bool send_all = 6;
+    bool send_all = 6; 
 }
 message SendCoinsResponse {
     /// The transaction ID of the transaction
@@ -1001,16 +1074,17 @@ message ListUnspentResponse {
     repeated Utxo utxos = 1 [json_name = "utxos"];
 }
 
-/**
+/** 
 `AddressType` has to be one of:
+
 - `p2wkh`: Pay to witness key hash (`WITNESS_PUBKEY_HASH` = 0)
 - `np2wkh`: Pay to nested witness key hash (`NESTED_PUBKEY_HASH` = 1)
 */
 enum AddressType {
-    WITNESS_PUBKEY_HASH = 0;
-    NESTED_PUBKEY_HASH = 1;
-    UNUSED_WITNESS_PUBKEY_HASH = 2;
-    UNUSED_NESTED_PUBKEY_HASH = 3;
+        WITNESS_PUBKEY_HASH = 0;
+        NESTED_PUBKEY_HASH = 1;
+        UNUSED_WITNESS_PUBKEY_HASH = 2;
+        UNUSED_NESTED_PUBKEY_HASH = 3;
 }
 
 message NewAddressRequest {
@@ -1164,6 +1238,14 @@ message Channel {
     The minimum satoshis the other node is required to reserve in its balance.
     */
     int64 remote_chan_reserve_sat = 21 [json_name = "remote_chan_reserve_sat"];
+
+    /**
+    If true, then this channel uses the modern commitment format where the key
+    in the output of the remote party does not change each state. This makes
+    back up and recovery easier as when the channel is closed, the funds go
+    directly to that key. 
+    */
+    bool static_remote_key = 22 [json_name = "static_remote_key"];
 }
 
 
@@ -1179,10 +1261,10 @@ message ListChannelsResponse {
 }
 
 message ChannelCloseSummary {
-    /// The outpoint (txid:index) of the funding transaction.
+    /// The outpoint (txid:index) of the funding transaction. 
     string channel_point = 1 [json_name = "channel_point"];
 
-    ///  The unique channel ID for the channel.
+    ///  The unique channel ID for the channel. 
     uint64 chan_id = 2 [json_name = "chan_id"];
 
     /// The hash of the genesis block that this channel resides within.
@@ -1228,7 +1310,7 @@ message ClosedChannelsRequest {
     bool abandoned = 6;
 }
 
-message ClosedChannelsResponse {
+message ClosedChannelsResponse { 
     repeated ChannelCloseSummary channels = 1 [json_name = "channels"];
 }
 
@@ -1313,9 +1395,9 @@ message GetInfoResponse {
     /// Whether the wallet's view is synced to the main chain
     bool synced_to_chain = 9 [json_name = "synced_to_chain"];
 
-    /**
-    Whether the current node is connected to testnet. This field is
-    deprecated and the network field should be used instead
+    /** 
+    Whether the current node is connected to testnet. This field is 
+    deprecated and the network field should be used instead 
     **/
     bool testnet = 10 [json_name = "testnet", deprecated = true];
 
@@ -1338,6 +1420,9 @@ message GetInfoResponse {
 
     /// The color of the current node in hex code format
     string color = 17 [json_name = "color"];
+
+    // Whether we consider ourselves synced with the public channel graph.
+    bool synced_to_graph = 18 [json_name = "synced_to_graph"];
 }
 
 message Chain {
@@ -1471,7 +1556,7 @@ message PendingChannelsResponse {
 
         int64 local_balance = 4 [ json_name = "local_balance" ];
         int64 remote_balance = 5 [ json_name = "remote_balance" ];
-
+       
         /// The minimum satoshis this node is required to reserve in its balance.
         int64 local_chan_reserve_sat = 6 [json_name = "local_chan_reserve_sat"];
 
@@ -1579,10 +1664,10 @@ message ChannelEventUpdate {
     }
 
     enum UpdateType {
-        OPEN_CHANNEL = 0;
-        CLOSED_CHANNEL = 1;
-        ACTIVE_CHANNEL = 2;
-        INACTIVE_CHANNEL = 3;
+         OPEN_CHANNEL = 0;
+         CLOSED_CHANNEL = 1;
+         ACTIVE_CHANNEL = 2;
+         INACTIVE_CHANNEL = 3;
     }
 
     UpdateType type = 5 [ json_name = "type" ];
@@ -1637,9 +1722,9 @@ message QueryRoutesRequest {
     repeated bytes ignored_nodes = 6;
 
     /**
-    A list of edges to ignore during path finding.
+    Deprecated. A list of edges to ignore during path finding.
     */
-    repeated EdgeLocator ignored_edges = 7;
+    repeated EdgeLocator ignored_edges = 7 [deprecated = true];
 
     /**
     The source node where the request route should originated from. If empty,
@@ -1652,6 +1737,26 @@ message QueryRoutesRequest {
     the optimal route.
     */
     bool use_mission_control = 9;
+
+    /**
+    A list of directed node pairs that will be ignored during path finding.
+    */
+    repeated NodePair ignored_pairs = 10;
+
+    /** 
+    An optional maximum total time lock for the route. If the source is empty or
+    ourselves, this should not exceed lnd's `--max-cltv-expiry` setting. If
+    zero, then the value of `--max-cltv-expiry` is used as the limit.
+    */
+    uint32 cltv_limit = 11;
+}
+
+message NodePair {
+    /// The sending node of the pair.
+    bytes from = 1;
+
+    /// The receiving node of the pair.
+    bytes to = 2;
 }
 
 message EdgeLocator {
@@ -1668,7 +1773,17 @@ message EdgeLocator {
 }
 
 message QueryRoutesResponse {
+    /**
+    The route that results from the path finding operation. This is still a
+    repeated field to retain backwards compatibility.
+    */
     repeated Route routes = 1 [json_name = "routes"];
+
+    /**
+    The success probability of the returned route based on the current mission
+    control state. [EXPERIMENTAL]
+    */
+    double success_prob = 2 [json_name = "success_prob"];
 }
 
 message Hop {
@@ -1690,6 +1805,12 @@ message Hop {
     can be executed without relying on a copy of the channel graph.
     */
     string pub_key = 8 [json_name = "pub_key"];
+
+    /** 
+    If set to true, then this hop will be encoded using the new variable length
+    TLV format.
+    */
+    bool tlv_payload = 9 [json_name = "tlv_payload"];
 }
 
 /**
@@ -1729,12 +1850,12 @@ message Route {
     Contains details concerning the specific forwarding details at each hop.
     */
     repeated Hop hops = 4 [json_name = "hops"];
-
+    
     /**
     The total fees in millisatoshis.
     */
     int64 total_fees_msat = 5 [json_name = "total_fees_msat"];
-
+    
     /**
     The total amount in millisatoshis.
     */
@@ -1742,7 +1863,7 @@ message Route {
 }
 
 message NodeInfoRequest {
-    /// The 33-byte hex-encoded compressed public of the target node
+    /// The 33-byte hex-encoded compressed public of the target node 
     string pub_key = 1;
 
     /// If true, will include all known channels associated with the node.
@@ -1827,12 +1948,12 @@ message ChannelEdge {
 }
 
 message ChannelGraphRequest {
-    /**
-    Whether unannounced channels are included in the response or not. If set,
-    unannounced channels are included. Unannounced channels are both private
-    channels, and public channels that are not yet announced to the network.
-    */
-    bool include_unannounced = 1 [json_name = "include_unannounced"];
+     /**
+     Whether unannounced channels are included in the response or not. If set,
+     unannounced channels are included. Unannounced channels are both private
+     channels, and public channels that are not yet announced to the network.
+     */
+     bool include_unannounced = 1 [json_name = "include_unannounced"];
 }
 
 /// Returns a new instance of the directed channel graph.
@@ -2067,6 +2188,42 @@ message Invoice {
     The state the invoice is in.
     */
     InvoiceState state = 21 [json_name = "state"];
+
+    /// List of HTLCs paying to this invoice [EXPERIMENTAL].
+    repeated InvoiceHTLC htlcs = 22 [json_name = "htlcs"];
+}
+
+enum InvoiceHTLCState {
+    ACCEPTED = 0;
+    SETTLED = 1;
+    CANCELED = 2;
+}
+
+/// Details of an HTLC that paid to an invoice
+message InvoiceHTLC {
+    /// Short channel id over which the htlc was received.
+    uint64 chan_id = 1 [json_name = "chan_id"];
+
+    /// Index identifying the htlc on the channel.
+    uint64 htlc_index = 2 [json_name = "htlc_index"];
+
+    /// The amount of the htlc in msat.
+    uint64 amt_msat = 3 [json_name = "amt_msat"];
+
+    /// Block height at which this htlc was accepted.
+    int32 accept_height = 4 [json_name = "accept_height"];
+
+    /// Time at which this htlc was accepted.
+    int64 accept_time = 5 [json_name = "accept_time"];
+
+    /// Time at which this htlc was settled or canceled.
+    int64 resolve_time = 6 [json_name = "resolve_time"];
+    
+    /// Block height at which this htlc expires.
+    int32 expiry_height = 7 [json_name = "expiry_height"];
+
+    /// Current state the htlc is in.
+    InvoiceHTLCState state = 8 [json_name = "state"];
 }
 
 message AddInvoiceResponse {
@@ -2299,6 +2456,9 @@ message PolicyUpdateRequest {
 
     /// The required timelock delta for HTLCs forwarded over the channel.
     uint32 time_lock_delta = 5 [json_name = "time_lock_delta"];
+
+    /// If set, the maximum HTLC size in milli-satoshis. If unset, the maximum HTLC will be unchanged.
+    uint64 max_htlc_msat = 6 [json_name = "max_htlc_msat"];
 }
 message PolicyUpdateResponse {
 }
@@ -2343,11 +2503,11 @@ message ForwardingEvent {
     //  * also list failures?
 }
 message ForwardingHistoryResponse {
-    /// A list of forwarding events from the time slice of the time series specified in the request.
-    repeated ForwardingEvent forwarding_events = 1 [json_name = "forwarding_events"];
+   /// A list of forwarding events from the time slice of the time series specified in the request.
+   repeated ForwardingEvent forwarding_events = 1 [json_name = "forwarding_events"];
 
-    /// The index of the last time in the set of returned forwarding events. Can be used to seek further, pagination style.
-    uint32 last_offset_index = 2 [json_name = "last_offset_index"];
+   /// The index of the last time in the set of returned forwarding events. Can be used to seek further, pagination style.
+   uint32 last_offset_index = 2 [json_name = "last_offset_index"];
 }
 
 message ExportChannelBackupRequest {
